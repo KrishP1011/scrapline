@@ -32,9 +32,9 @@ asset files: every sprite, sound effect and music track is generated at runtime.
 - **42 bench cards** — stacking upgrades, eight automatic abilities that fight for you,
   and red risk cards that trade health for power.
 - **11 enemy types** plus gold-ringed elites from wave 4.
-- **A heavy every fifth wave**, alternating — 8 main bosses on 10, 20, 30…
-  (three phases, telegraphed attacks, heavy armour) and 3 mini-bosses on 5, 15, 25…
-  (one phase, one pattern, a third of the health).
+- **A heavy every fifth wave from wave 10**, alternating — 8 main bosses on 10, 20,
+  30… (three phases, telegraphed attacks, heavy armour) and 3 mini-bosses on 15, 25,
+  35… (one phase, one pattern, a third of the health).
 - **Build synergies** — burn, crits, arcs, kill streaks and drag fields that
   multiply into each other, all with hard ceilings. The COMBOS page of the in-game
   manual documents every one of them.

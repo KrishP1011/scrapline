@@ -73,6 +73,7 @@ global.requestAnimationFrame = () => 0;      // the real loop never runs; we dri
 global.addEventListener = noop;
 global.removeEventListener = noop;
 global.matchMedia = () => ({ matches: false, addEventListener: noop });
+global.location = { hash: '', href: 'file:///scrapline.html', search: '', reload: noop };
 function FakeAudioNode() {
   return {
     connect: () => FakeAudioNode(), disconnect: noop, start: noop, stop: noop,
@@ -231,6 +232,20 @@ const driver = `
     if (p.x > W - M) rx -= (p.x - (W - M)) / M * 2.2;
     if (p.y < M) ry += (M - p.y) / M * 2.2;
     if (p.y > H - M) ry -= (p.y - (H - M)) / M * 2.2;
+    // hold position when nothing is actually threatening — this is what a player
+    // does, and without it a rig that rewards standing still can never be judged
+    let near = 1e9, nearHeavy = 1e9;
+    for (const e of enemies) {
+      const d = Math.hypot(e.x - p.x, e.y - p.y) - e.r;
+      near = Math.min(near, d);
+      if (isHeavy(e)) nearHeavy = Math.min(nearHeavy, d);
+    }
+    for (const b2 of ebullets) near = Math.min(near, Math.hypot(b2.x - p.x, b2.y - p.y));
+    // Heavies get a much wider berth than ordinary enemies: a Foreman engages at
+    // 190px and throws a ring out to 330, so a bot that held position at 170 simply
+    // stood in the shockwave every time and made every rig look broken.
+    if (near > 170 && nearHeavy > 340 && p.x > 120 && p.x < W - 120 && p.y > 120 && p.y < H - 120)
+      return { dx: 0, dy: 0 };
     if (!rx && !ry) { rx = Math.cos(gt * 0.7); ry = Math.sin(gt * 0.7); }
     const l = Math.hypot(rx, ry) || 1;
     return { dx: rx / l, dy: ry / l };
@@ -240,7 +255,8 @@ const driver = `
     try {
       charIdx = opts.charIdx || 0;
       reset();
-      let t = 0, guard = 0, threat = 0;
+      let t = 0, guard = 0, threat = 0, waveT = 0;
+      const deathCtx = { heavy: null, secs: 0, foes: 0, dps: 0 };
       const DT2 = 1 / 60;
       while (t < seconds && guard < 2500000) {
         guard++;
@@ -268,10 +284,19 @@ const driver = `
           }
           nextWave();
         }
-        if (state === 'dead') break;
+        if (state === 'play') waveT += DT2; else waveT = 0;
+        if (state === 'dead') {
+          deathCtx.heavy = (typeof isHeavyWave === 'function') ? isHeavyWave(wave) : false;
+          deathCtx.secs = +waveT.toFixed(1);
+          deathCtx.foes = enemies.length;
+          deathCtx.dps = turretDps();
+          break;
+        }
         t += DT2;
       }
       report[tag] = { reachedWave: wave, kills: stats.totalKills, alive: state !== 'dead',
+                      deathHeavy: deathCtx.heavy, deathSecs: deathCtx.secs, deathFoes: deathCtx.foes,
+                      deathDps: deathCtx.dps,
                       seconds: Math.round(t), dps: turretDps(), maxHp: Math.round(p.maxHp),
                       cards: Object.values(p.lvl).reduce((a, b) => a + b, 0) };
     } catch (err) { report.errors.push(tag + ': ' + (err && err.stack || err)); }
@@ -282,6 +307,26 @@ const driver = `
   report.campaign = { n: runs.length, waves: runs,
                       mean: +(runs.reduce((a, b) => a + b, 0) / runs.length).toFixed(2),
                       median: runs[Math.floor(runs.length / 2)] };
+  // every rig against the same bot, so no rig is quietly a trap
+  if (!globalThis.SKIP_RIGS) {
+    report.rigs = {};
+    for (let ci = 0; ci < CHARS.length; ci++) {
+      const rr = [];
+      for (let run = 0; run < 24; run++) {
+        campaign(900, 'r', { charIdx: ci });
+        if (report.r) { rr.push({ w: report.r.reachedWave, h: report.r.deathHeavy,
+                                  s: report.r.deathSecs, f: report.r.deathFoes, d: report.r.deathDps }); delete report.r; }
+      }
+      rr.sort((a, b) => a.w - b.w);
+      const ws = rr.map(x => x.w);
+      report.rigs[CHARS[ci].n] = { mean: +(ws.reduce((a, b) => a + b, 0) / ws.length).toFixed(2),
+                                   median: ws[Math.floor(ws.length / 2)], best: ws[ws.length - 1],
+                                   diedOnHeavy: rr.filter(x => x.h).length + '/' + rr.length,
+                                   avgSecsIntoWave: +(rr.reduce((a, b) => a + b.s, 0) / rr.length).toFixed(1),
+                                   avgFoesAtDeath: Math.round(rr.reduce((a, b) => a + b.f, 0) / rr.length),
+                                   avgDps: Math.round(rr.reduce((a, b) => a + b.d, 0) / rr.length) };
+    }
+  }
 
 
   // ---- economy probe ----

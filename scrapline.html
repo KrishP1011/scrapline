@@ -475,6 +475,15 @@
           color:#8A7A63; padding:2px 0; }
   .srow b { color:#DCD5C6; font-weight:700; }
   .hint { color: #57503F; font-size: 10.5px; margin-top: 16px; letter-spacing: 1px; }
+  /* developer unlock confirmation — never shown unless #dev or the console is used */
+  .devnote {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 40; padding: 7px 16px; border-radius: 3px;
+    background: #17110D; border: 1px solid #F0A93B; color: #F0A93B;
+    font-family: 'Oxanium', sans-serif; font-size: 11px; font-weight: 700;
+    letter-spacing: 1.6px; white-space: nowrap; pointer-events: none;
+    transition: opacity .7s;
+  }
   /* The primary action stays on screen even when the summary above it is longer
      than the cabinet, so "play again" is never something you have to go looking for. */
   .actionbar {
@@ -887,8 +896,14 @@ const MINIS = [
     r: 32, hpMul: 1.3, spd: 52, dmg: 10,
     d: 'Slow and swollen. Walks a steady drip of husks at you and coughs an acid ring when you crowd it.' }
 ];
-function miniFor(w) { return MINIS[Math.max(0, Math.floor((w - 5) / 10)) % MINIS.length]; }
-function isMiniWave(w) { return w >= 5 && w % 10 === 5; }
+// Minis start at 15, not 5. Measured: a must-kill, knockback-immune target at wave 5
+// killed the two fragile rigs on 18 of 24 runs each and dropped every rig except
+// Scrapper by three to four waves, because a wave you cannot outlast is a completely
+// different problem from a wave you can kite for twenty seconds. Waves 1-9 are left
+// as the tutorial they always were; from wave 10 the heavy cadence runs as designed,
+// alternating boss and mini every fifth wave.
+function miniFor(w) { return MINIS[Math.max(0, Math.floor((w - 15) / 10)) % MINIS.length]; }
+function isMiniWave(w) { return w >= 15 && w % 10 === 5; }
 // a "heavy" wave is any wave built around a single armoured target
 function isHeavyWave(w) { return isBossWave(w) || isMiniWave(w); }
 // bosses and mini-bosses share armour, knockback immunity and the HUD bar
@@ -926,7 +941,7 @@ const CHARS = [
   { id: 'ember', n: 'Ember', tag: 'PYRO',
     d: 'Barely scratches anything it shoots. Everything it touches burns down instead, and its fires bite harder than anyone else’s.',
     pal: { W: '#E0A87A', M: '#A8613A', A: '#FF7A2F' },
-    base: { maxHp: 62, hp: 62, dmg: 10, rate: 2.4, speed: 216, range: 210, weapons: [8, -1] },
+    base: { maxHp: 72, hp: 72, dmg: 15, rate: 2.4, speed: 216, range: 210, weapons: [8, -1] },
     locked: true, perkTxt: 'Pilot Light · welded mount · +30% burn damage',
     setup: () => { p.burnMul *= 1.3; } },
 
@@ -2388,8 +2403,15 @@ function knock(e, ax, ay) {
   if (heavy(e)) return;
   e.kx += ax; e.ky += ay;
 }
-// boss damage scales with your frame, so stacking Plating can't make you immune
-function bossDmg(base) { return Math.round(base + p.maxHp * 0.075); }
+// Boss damage scales with your frame so stacking Plating cannot make you immune.
+// The proportion used to be 7.5%, which made every boss a fixed ~13-hit sentence
+// regardless of build and made close-range rigs unplayable on heavy waves. At 5%
+// a boss fight is still the most dangerous thing in the game and Plating still
+// cannot trivialise it, but there is room to make a mistake and keep fighting.
+function bossDmg(base, e) {
+  const prop = (e && e.t === 'mini') ? 0.035 : 0.05;   // minis are the lower-stakes tier
+  return Math.round(base + p.maxHp * prop);
+}
 
 function dealDamage(e, raw) {
   let dmg = raw;
@@ -2545,11 +2567,11 @@ function spawnMini() {
   // it. Measured with a kiting bot, the original numbers here turned wave 5 into a
   // wall that ended a quarter of all runs, so the first one is deliberately a
   // fraction of the rest: it exists to teach the shape, not to end the run.
-  const green = wave < 10 ? 0.55 : wave < 20 ? 0.85 : 1;
+  const green = wave < 10 ? 0.40 : wave < 20 ? 0.80 : 1;
   const hp = Math.round((120 + wave * 56) * b.hpMul * green);
   enemies.push({
     t: 'mini', mini: idx, hp: hp, maxHp: hp, spd: b.spd,
-    dmg: Math.max(3, Math.round(b.dmg * (wave >= 25 ? 1 : wave >= 15 ? 0.78 : 0.5))), r: b.r,
+    dmg: Math.max(3, Math.round(b.dmg * (wave >= 25 ? 1 : wave >= 15 ? 0.78 : 0.42))), r: b.r,
     val: Math.round(6 + wave * 0.7), col: '#F0A93B',
     x: W / 2, y: -60, kx: 0, ky: 0, flash: 0,
     atk: 1.8, wind: 0, phase: 1, dmgWin: 0, armFx: 0, st: 'walk', stT: 0
@@ -3125,8 +3147,8 @@ function update(dt) {
               e.slamFx = .4;
               shake = 18; AU.blast();
               makeCrater(e.x, e.y, 110, 220);
-              rings.push({ x: e.x, y: e.y, r: 20, max: 330, spd: 360, dmg: bossDmg(e.dmg * .8), hit: false });
-              if (dist < 118 && p.inv <= 0 && hurtPlayer(bossDmg(e.dmg))) return;
+              rings.push({ x: e.x, y: e.y, r: 20, max: 330, spd: 360, dmg: bossDmg(e.dmg * .8, e), hit: false });
+              if (dist < 118 && p.inv <= 0 && hurtPlayer(bossDmg(e.dmg, e))) return;
             }
           } else if (e.atk <= 0 && dist < 190) {
             e.wind = .7; e.atk = 3.1; mv = 0;
@@ -3147,7 +3169,7 @@ function update(dt) {
               for (let k = 0; k < 5; k++)
                 ebullets.push({ x: e.x, y: e.y, vx: Math.cos(e.lockA) * (340 + k * 24),
                                 vy: Math.sin(e.lockA) * (340 + k * 24),
-                                dmg: bossDmg(e.dmg * .5), life: 2.6, rivet: true });
+                                dmg: bossDmg(e.dmg * .5, e), life: 2.6, rivet: true });
               AU.spit(); shake = Math.max(shake, 6);
             }
           } else if (e.atk <= 0) {
@@ -3170,7 +3192,7 @@ function update(dt) {
             for (let k = 0; k < n; k++) {
               const ang = k / n * Math.PI * 2 + gt;
               ebullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 210, vy: Math.sin(ang) * 210,
-                              dmg: bossDmg(e.dmg * .5), life: 3 });
+                              dmg: bossDmg(e.dmg * .5, e), life: 3 });
             }
             burst(e.x, e.y, '#8E5FA8', 16);
             AU.spit();
@@ -3213,7 +3235,7 @@ function update(dt) {
           for (let k = 0; k < n; k++) {
             const ang = k / n * Math.PI * 2 + spin;
             ebullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 235, vy: Math.sin(ang) * 235,
-                            dmg: bossDmg(e.dmg * .5), life: 3 });
+                            dmg: bossDmg(e.dmg * .5, e), life: 3 });
           }
           AU.spit();
         }
@@ -3544,7 +3566,7 @@ function update(dt) {
     if (p.inv <= 0 && Math.hypot(e.x - p.x, e.y - p.y) < e.r + p.r) {
       if (e.t !== 'boss') { e.kx = Math.cos(a) * -260; e.ky = Math.sin(a) * -260; }
       if (e.t === 'charger') { e.st = 'rest'; e.stT = 1.0; }
-      if (hurtPlayer(e.t === 'boss' ? bossDmg(e.dmg) : e.dmg)) return;
+      if (hurtPlayer(heavy(e) ? bossDmg(e.dmg, e) : e.dmg)) return;
     }
   }
 
@@ -4737,7 +4759,7 @@ const WEAPONS = [
     d: 'SIGNATURE — a permanent ignition flame. Almost no impact damage; its burn is the damage.',
     fire(a) {
       p.flameFx = 0.12; p.flameAng = a;
-      const reach = Math.max(155, slotRange(0));
+      const reach = Math.max(195, slotRange(0));   // outside a Foreman slam, not a Press one
       const half = 0.5;
       for (const e of enemies) {
         const d = Math.hypot(e.x - p.x, e.y - p.y);
@@ -4745,11 +4767,14 @@ const WEAPONS = [
         let da = Math.atan2(e.y - p.y, e.x - p.x) - a;
         da = Math.abs(Math.atan2(Math.sin(da), Math.cos(da)));
         if (da > half) continue;
-        stats.damageDealt += dealDamage(e, effDmg() * 0.12 * curTune);
+        stats.damageDealt += dealDamage(e, effDmg() * 0.20 * curTune);
         e.flash = .07;
         stats.hits++;
-        // its own ignition, always, so Ember is a burn rig from wave one
-        ignite(e, Math.max(p.burnDps, effDmg() * 0.30 * curTune), 2.6);
+        // its own ignition, always, so Ember is a burn rig from wave one.
+        // Measured at 0.30 the rig could not kill the wave 5 mini-boss in 24 runs:
+        // burn does not stack, so against a single armoured target Ember had only
+        // its (deliberately tiny) impact damage and nothing else.
+        ignite(e, Math.max(p.burnDps, effDmg() * 0.50 * curTune), 2.6);
       }
       for (let k = 0; k < 6; k++) {
         const ang = a + (Math.random() - .5) * half * 2, sp = 200 + Math.random() * 200;
@@ -5220,7 +5245,7 @@ function buildBook() {
   }).join('');
   const miniRows = MINIS.map((b, i) => {
     const at = [];
-    for (let w = 5; w <= MINIS.length * 10 + 5; w += 10) if (miniFor(w).id === b.id) at.push('wave ' + w);
+    for (let w = 15; w <= MINIS.length * 10 + 15; w += 10) if (miniFor(w).id === b.id) at.push('wave ' + w);
     return `<div class="entry">
        <img class="eico big" src="${SPR.mini[i][0].toDataURL ? SPR.mini[i][0].toDataURL() : ''}" alt="">
        <div class="etxt"><div class="en">${b.n} <span class="tag tAUTO">MINI</span></div>
@@ -5231,8 +5256,8 @@ function buildBook() {
   document.getElementById('pgBoss').innerHTML = bossRows + miniRows +
     `<div class="entry"><div class="etxt">
        <div class="en">FIGHTING THEM</div>
-       <div class="ed">Something heavy arrives every fifth wave, alternating: a <b>mini-boss</b> on 5, 15, 25 and so on,
-       a <b>main boss</b> on 10, 20, 30. Neither has a clock — the wave ends when it dies — but the yard is no longer
+       <div class="ed">Your first nine waves are yours alone. From wave 10 something heavy arrives every fifth wave,
+       alternating: a <b>main boss</b> on 10, 20, 30 and a <b>mini-boss</b> on 15, 25, 35. Neither has a clock — the wave ends when it dies — but the yard is no longer
        swept for them. A thin trickle of hostiles keeps arriving throughout, so you can never simply stand still and
        empty everything into the big one.<br><br>
        A main boss has three phases marked on its health bar. Crossing one triggers a roar: it cannot be hurt during it,
@@ -5260,6 +5285,7 @@ function buildBook() {
   document.getElementById('pgSys').innerHTML = [
     ['SCRAP', 'Dropped by everything you kill. Anything still on the floor when a wave ends is vacuumed to you, so nothing is ever lost. Spend it at the bench between waves.'],
     ['SALVAGE YIELD', 'The first ' + FULL_HAUL + ' scrap you collect in a wave is worth full value; past that, each further pickup is worth progressively less, and the meter resets when the next wave starts. Killing more always earns more — it just stops paying double for double the crowd. Without this, wave 20 arrived with thousands of unspent scrap and the bench stopped being a decision. It also means the clear bonus, which is fixed and predictable, is a real part of your income rather than a rounding error.'],
+    ['SCRAP MULTIPLIERS', 'Magpie\'s haul, Salvage Rights and Scrap Fever all raise what a single pickup is worth, exactly as they say. They also push you through the wave\'s full-value window faster, so across a whole wave they work out closer to a square root than a straight multiplier — a 3x rate is nearer 1.7x income. That is deliberate: it keeps them worth taking without letting a scrap build outpace the bench, which is the one thing that broke this game once already.'],
     ['SALVAGE TOKENS', 'Earned from how far you got, not how much you hoarded. Spend them in THE YARD on permanent upgrades and new rigs.'],
     ['RISK CARDS', 'Marked in red. Real power for a real cost — less health, or more damage taken. Cheap on purpose.'],
     ['ELITES', 'From wave 4 any hostile can arrive ringed in gold: over three times the health, harder hitting, and four times the scrap.'],
@@ -5763,6 +5789,57 @@ function refreshRankLine() {
   }
 }
 refreshRankLine();
+
+// ============ DEVELOPER UNLOCK ============
+// Deliberately not reachable from any menu or button. Two ways in:
+//   · add #dev to the end of the URL   (works on a phone too)
+//   · call scrapline.unlockAll() in the browser console
+// Anything that unlocks everything has to be opt-in and invisible, otherwise a
+// normal player trips over it and deletes the entire progression system for
+// themselves in one click. Progress is saved to localStorage exactly as normal,
+// so it persists, and scrapline.wipe() puts it back to a fresh save.
+function devNote(txt) {
+  const el = document.createElement('div');
+  el.className = 'devnote';
+  el.textContent = txt;
+  const wrap = document.getElementById('wrap');
+  if (wrap) wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; }, 2600);
+  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 3400);
+}
+const DEV = {
+  unlockAll() {
+    META.unlocked = Object.keys(UNLOCK_COST).slice();
+    for (const y of YARD) META.yard[y.id] = y.max;
+    META.prestige = RANKS.length - 1;          // top rank
+    META.tokens = 9999;
+    saveMeta();
+    refreshRankLine();
+    if (overlayOpen('yard')) showYard();
+    if (overlayOpen('pick')) showPick();
+    devNote('DEV — ALL RIGS + WORKSHOP MAXED · RANK ' + rankName().toUpperCase());
+    return 'unlocked ' + META.unlocked.length + ' rigs · workshop maxed · rank ' +
+           rankName() + ' (+' + Math.round((prestigeMul() - 1) * 100) + '% HP/damage) · ' +
+           META.tokens + ' tokens';
+  },
+  wipe() {
+    META = { tokens: 0, unlocked: ['scrapper'], yard: {}, bestWave: 0, runs: 0,
+             prestige: 0, muted: META.muted };
+    saveMeta();
+    refreshRankLine();
+    if (overlayOpen('yard')) showYard();
+    if (overlayOpen('pick')) showPick();
+    devNote('DEV — PROGRESS WIPED');
+    return 'progress reset to a fresh save';
+  },
+  tokens(n) { META.tokens = Math.max(0, n | 0); saveMeta(); if (overlayOpen('yard')) showYard();
+              devNote('DEV — ' + META.tokens + ' TOKENS'); return META.tokens; },
+  meta() { return JSON.parse(JSON.stringify(META)); }
+};
+window.scrapline = DEV;
+// guarded: the game is a single file that may be run somewhere without a location
+if (typeof location !== 'undefined' && (location.hash || '').toLowerCase() === '#dev') DEV.unlockAll();
+
 reset();
 state = 'menu';
 
