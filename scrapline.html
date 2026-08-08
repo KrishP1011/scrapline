@@ -2319,6 +2319,9 @@ const CRIT_CAP   = 0.60;   // most shots you can ever crit with
 const CHAIN_CAP  = 0.55;   // most shots that can arc onward
 const CHAIN_FRAC = 0.45;   // arc damage as a share of the hit that spawned it
 const SLOW_CAP   = 0.40;   // hardest you can ever slow anything
+const SLOW_R     = 165;    // Magnetic Bracing's reach. Fixed: stacks deepen the
+                           // slow rather than widening the ring, so the card is
+                           // about how hard the field bites, not how far it spreads
 const STREAK_CAP = 6;      // kill-streak stacks
 const SPEED_CAP  = 430;    // px/s. Track Shoes and Hollow Frame used to run away with this
 const BOSS_MIN_FIGHT = 65;              // seconds a boss should survive at full throttle
@@ -4701,9 +4704,11 @@ const POOL = [
     base: 19, maxed: () => p.chain >= CHAIN_CAP - 0.0001, f: () => { p.chainLvl++; p.chain = Math.min(CHAIN_CAP, p.chain + 0.11); } },
   { n: 'Overrun', d: 'AUTO — each kill stacks fire rate for 3s, up to six kills deep',
     base: 16, maxed: () => p.streakLvl >= 3, f: () => { p.streakLvl++; } },
-  { n: 'Magnetic Bracing', d: 'AUTO — a drag field around you slows everything that walks into it',
-    base: 15, maxed: () => p.slowAmt >= SLOW_CAP - 0.0001 && p.slowR >= 250,
-    f: () => { p.slowLvl++; p.slowR = p.slowLvl === 1 ? 155 : Math.min(250, p.slowR + 20); p.slowAmt = Math.min(SLOW_CAP, p.slowAmt + 0.13); } },
+  { n: 'Magnetic Bracing', d: 'AUTO — a drag field around you. Every stack drags harder, in the same ring',
+    base: 15, maxed: () => p.slowAmt >= SLOW_CAP - 0.0001,
+    // a strong first bite, then diminishing: 15 / 22 / 29 / 36 / 40%
+    f: () => { p.slowLvl++; p.slowR = SLOW_R;
+               p.slowAmt = Math.min(SLOW_CAP, p.slowAmt + (p.slowLvl === 1 ? 0.15 : 0.07)); } },
   // hidden until you own the thing it upgrades — the "maxed" hook doubles as a
   // prerequisite, so the bench never offers a card that would do nothing
   { n: 'Thermal Lance', d: 'AUTO — your Slag Vent sets fire to whatever it burns, and reaches further',
@@ -4755,7 +4760,7 @@ const NOW = {
   'Shock Capacitor':  () => Math.round(effCrit() * 100) + '% crit for x2' + (p.crit > effCrit() + 0.001 ? ' (capped)' : ''),
   'Chain Solder':     () => Math.round(effChain() * 100) + '% arc, ' + Math.round(CHAIN_FRAC * 100) + '% damage',
   'Overrun':          () => '+' + Math.round(STREAK_CAP * 0.045 * p.streakLvl * 100) + '% rate at 6 kills',
-  'Magnetic Bracing': () => Math.round(p.slowAmt * 100) + '% slower, ' + Math.round(p.slowR) + 'px',
+  'Magnetic Bracing': () => Math.round(p.slowAmt * 100) + '% slower' + (p.slowAmt >= SLOW_CAP - 0.0001 ? ' (capped)' : '') + ', ' + Math.round(p.slowR) + 'px ring',
   'Thermal Lance':    () => p.ventBurn ? 'vent ignites · ' + p.ventR + 'px' : 'needs Slag Vent',
   'Splinter Payload': () => p.splinter + ' burst damage, 88px',
   'Scrap Ward':       () => 'eats 1 hit every ' + p.wardCdMax.toFixed(0) + 's',
@@ -4992,8 +4997,8 @@ const ABILITIES = [
     d: 'Always on. Every kill winds your mounts up for three seconds, stacking six kills deep. Stop killing and it unwinds immediately.',
     stat: () => p.streakLvl ? `${Math.min(STREAK_CAP, p.streak)}/${STREAK_CAP} stacks · ${Math.round((streakMul() - 1) * 100)}% rate right now` : 'LOCKED — buy Overrun at the bench' },
   { n: 'Magnetic Bracing', key: 'AUTO', icon: 'Magnetic Bracing',
-    d: 'Always on. A drag field around you slows anything inside it. Bosses shrug it off, and a charge already committed still lands.',
-    stat: () => p.slowLvl ? `${Math.round(p.slowAmt * 100)}% slower inside ${Math.round(p.slowR)}px` : 'LOCKED — buy Magnetic Bracing at the bench' },
+    d: 'Always on. A drag field around you slows anything inside it. The ring never grows — every stack makes the field drag harder instead, up to a hard 40% cap. Bosses shrug it off, and a charge already committed still lands.',
+    stat: () => p.slowLvl ? `${Math.round(p.slowAmt * 100)}% slower inside a fixed ${Math.round(p.slowR)}px ring · ${Math.round(SLOW_CAP * 100)}% cap` : 'LOCKED — buy Magnetic Bracing at the bench' },
   { n: 'Burn', key: 'STATUS', icon: 'Incendiary Rounds',
     d: 'Fire ticks four times a second and goes through armour the same way a bullet does. It never stacks — a second source refreshes the timer and keeps the stronger rate — so fire builds win on uptime, not on multiplying.',
     stat: () => (p.burnLvl || p.ventBurn) ? `${Math.round(Math.min(p.burnDps, igniteMax()))} dmg/s · ceiling ${Math.round(igniteMax())} dmg/s` : 'NONE — buy Incendiary Rounds or a Slag Thrower' }
