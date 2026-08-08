@@ -19,13 +19,18 @@ all sprites, sound and music are generated at runtime.
 ## What's in it
 
 - **4 rigs** — Scrapper, Bulwark, Sparkhand, Magpie. Different stats and starting weapon.
-- **5 weapons** — rifle, scattergun, rail lance, flak mortar, needler. Fit a second
-  mount to carry two at once; each fires on its own rate and range.
-- **26 bench cards** — stacking upgrades, five automatic abilities that fight for you,
+- **8 weapons** — rifle, scattergun, rail lance, flak mortar, needler, arc thrower,
+  slag thrower, grapple harpoon. Fit a second mount to carry two at once; each fires
+  on its own rate and range.
+- **42 bench cards** — stacking upgrades, eight automatic abilities that fight for you,
   and red risk cards that trade health for power.
-- **7 enemy types** plus gold-ringed elites from wave 4.
-- **5 bosses**, every tenth wave: The Foundry Press, Slag Widow, Rust Colossus,
-  The Arc Warden, The Derrick. Three phases each, telegraphed attacks, heavy armour.
+- **11 enemy types** plus gold-ringed elites from wave 4.
+- **A heavy every fifth wave**, alternating — 8 main bosses on 10, 20, 30…
+  (three phases, telegraphed attacks, heavy armour) and 3 mini-bosses on 5, 15, 25…
+  (one phase, one pattern, a third of the health).
+- **Build synergies** — burn, crits, arcs, kill streaks and drag fields that
+  multiply into each other, all with hard ceilings. The COMBOS page of the in-game
+  manual documents every one of them.
 - **Meta-progression** — salvage tokens unlock rigs and permanent workshop upgrades
   in The Yard, then seven prestige ranks with shiny badges.
 - Procedural audio, run summary, field manual, touch controls, saved progress.
@@ -37,3 +42,18 @@ in-memory if storage is blocked.
 
 Everything lives in `scrapline.html` — game, sprites-as-pixel-arrays, audio
 synthesis and UI in one file, so it can be dropped onto a web game portal as-is.
+
+## Testing
+
+`tools/headless.js` runs the real game script under node against a stubbed DOM,
+driving every wave tier, weapon pairing and rig, plus a kiting bot that shops for
+itself and is used as a fixed difficulty yardstick between builds.
+
+```
+node tools/headless.js                     # this build
+node tools/headless.js /path/to/other.html # A/B against another build
+```
+
+The node stub cannot catch a bad canvas call, so there is also a real-browser pass:
+inject a driver into a copy of the page and run it through headless Chrome, which
+surfaces genuine runtime errors and renders real frames for eyeballing.

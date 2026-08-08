@@ -490,6 +490,7 @@
       </div>
       <div class="tabs">
         <button class="tab sel" data-pg="pgBuffs">BENCH UPGRADES</button>
+        <button class="tab" data-pg="pgCombo">COMBOS</button>
         <button class="tab" data-pg="pgAbil">ABILITIES</button>
         <button class="tab" data-pg="pgBest">HOSTILES</button>
         <button class="tab" data-pg="pgBoss">BOSSES</button>
@@ -497,6 +498,7 @@
       </div>
       <div class="pages">
         <div class="page" id="pgBuffs"></div>
+        <div class="page" id="pgCombo" style="display:none"></div>
         <div class="page" id="pgAbil" style="display:none"></div>
         <div class="page" id="pgBest" style="display:none"></div>
         <div class="page" id="pgBoss" style="display:none"></div>
@@ -573,7 +575,14 @@ const PAL = {
   v: '#5C3A70',
   O: '#E0713A', // hot orange (charger)
   o: '#8E3D18',
-  e: '#F6E2B4'  // lamp glow / eyes
+  e: '#F6E2B4', // lamp glow / eyes
+  S: '#7FB8D4', // anodized blue (shielder)
+  s: '#3E6F8A', // deep anodized
+  N: '#6B7A82', // gunmetal (gunner / hawk)
+  n: '#3A454B', // deep gunmetal
+  F: '#FF7A2F', // flame
+  f: '#C24A10', // deep flame
+  T: '#2E241C'  // tar / shadow
 };
 
 function sprite(rows, scale, ov) {
@@ -728,10 +737,43 @@ const BOSSES = [
   { id: 'derrick', n: 'THE DERRICK', art: 'bossDerrick', scale: 4,
     pal: null,
     r: 48, hpMul: 1.35, spd: 38, dmg: 22,
-    d: 'A magnet crane that drags you in and calls scrap down out of the dark on top of you.' }
+    d: 'A magnet crane that drags you in and calls scrap down out of the dark on top of you.' },
+  { id: 'smelter', n: 'THE SMELTER', art: 'bossSmelter', scale: 4,
+    pal: null,
+    r: 46, hpMul: 1.25, spd: 44, dmg: 18,
+    d: 'Bleeds molten slag across the deck and burns the yard down to a corridor. Every pool it leaves stays lit.' },
+  { id: 'herder', n: 'THE SCRAPHERD', art: 'bossHerder', scale: 4,
+    pal: null,
+    r: 44, hpMul: 1.15, spd: 54, dmg: 15,
+    d: 'Never fights you itself. Herds a pen of hostiles, plates them in its own field, and hides behind the crowd it makes.' },
+  { id: 'gantry', n: 'THE GANTRY', art: 'bossGantry', scale: 4,
+    pal: null,
+    r: 45, hpMul: 1.1, spd: 96, dmg: 20,
+    d: 'Closes and never stops closing. Lunges, then sweeps its arms in a wide arc you have to be behind, not far from.' }
 ];
 function bossFor(w) { return BOSSES[Math.max(0, Math.floor(w / 10) - 1) % BOSSES.length]; }
 function isBossWave(w) { return w % 10 === 0; }
+
+// ---- mini-bosses: every tenth wave offset by five, so a heavy shows up every fifth ----
+// Lower stakes than a main boss on purpose: one phase, one or two attacks, and a
+// fight that is over in well under a minute. They still ignore knockback.
+const MINIS = [
+  { id: 'foreman', n: 'SLAG FOREMAN', art: 'miniForeman', scale: 3,
+    r: 30, hpMul: 1.15, spd: 74, dmg: 11,
+    d: 'A yard boss with a hydraulic fist. Winds up, then pounds a ring out of the deck around itself.' },
+  { id: 'hawk', n: 'RIVET HAWK', art: 'miniHawk', scale: 3,
+    r: 26, hpMul: 0.85, spd: 132, dmg: 9,
+    d: 'Circles at range and stitches rivets down a line it paints first. Keeps moving, so you have to as well.' },
+  { id: 'mother', n: 'HUSK MOTHER', art: 'miniMother', scale: 3,
+    r: 32, hpMul: 1.3, spd: 52, dmg: 10,
+    d: 'Slow and swollen. Walks a steady drip of husks at you and coughs an acid ring when you crowd it.' }
+];
+function miniFor(w) { return MINIS[Math.max(0, Math.floor((w - 5) / 10)) % MINIS.length]; }
+function isMiniWave(w) { return w >= 5 && w % 10 === 5; }
+// a "heavy" wave is any wave built around a single armoured target
+function isHeavyWave(w) { return isBossWave(w) || isMiniWave(w); }
+// bosses and mini-bosses share armour, knockback immunity and the HUD bar
+function heavy(e) { return e.t === 'boss' || e.t === 'mini'; }
 
 // ---- playable characters: same upgrade pool, different starting point ----
 const CHARS = [
@@ -835,6 +877,156 @@ ART.charger = [[
   'KOOeOOOOOOOOeOOK','KOOOOOOOOOOOOOOK','KoOOOOOOOOOOOOoK','.KOOOOOOOOOOOOK.','..KOOOOOOOOOOK..',
   '...KKOOOOOOKK...','.....KoOOoK.....','...KOOK....KOOK.','...KKKK....KKKK.'
 ]];
+
+// ---- new hostiles ----
+// Scrap Hound — low, four-legged, reads as "fast" even standing still
+ART.hound = [[
+  '..............','KK..........KK','KRK.KKKKKK.KRK','.KRKRRRRRRKRK.','..KRReRRReRRK.',
+  '.KRRRRRRRRRRRK','KRrRRRRRRRRrRK','.KRRRRRRRRRRK.','..KKRRRRRRKK..','...KrK..KrK...',
+  '...KRK..KRK...','...KKK..KKK...'
+],[
+  '..............','KK..........KK','KRK.KKKKKK.KRK','.KRKRRRRRRKRK.','..KRReRRReRRK.',
+  '.KRRRRRRRRRRRK','KRrRRRRRRRRrRK','.KRRRRRRRRRRK.','..KKRRRRRRKK..','..KrK....KrK..',
+  '..KRK....KRK..','..KKK....KKK..'
+]];
+// Bloat Cask — a swollen drum of acid; the bulge is the tell that it pops
+ART.cask = [[
+  '...KKKKKK...','..KVVVVVVK..','.KVVVVVVVVK.','KVVvvVVvvVVK','KVVvVeVeVvVK',
+  'KVVVVVVVVVVK','KVvVVVVVVvVK','KVVVVVVVVVVK','.KVVvvvvVVK.','..KVVVVVVK..',
+  '...KKvvKK...','....KKKK....'
+],[
+  '...KKKKKK...','..KVVVVVVK..','.KVVVVVVVVK.','KVvvVVVVvvVK','KVvVeVVeVvVK',
+  'KVVVVVVVVVVK','KVVVVVVVVVVK','KVvVVVVVVvVK','.KVVvvvvVVK.','..KVVVVVVK..',
+  '...KKvvKK...','....KKKK....'
+]];
+// Rivet Gunner — braced on a tripod behind a long barrel
+ART.gunner = [[
+  '....KKKK....','...KNNNNK...','..KNNeeNNK..','..KNNNNNNK..','.KNnNNNNnNK.',
+  'KNNNNNNNNNNK','KNNNNNNNNNAA','.KNNNNNNNNK.','..KNnNNnNK..','..KNK..KNK..',
+  '.KNK....KNK.','.KKK....KKK.'
+],[
+  '....KKKK....','...KNNNNK...','..KNNeeNNK..','..KNNNNNNK..','.KNnNNNNnNK.',
+  'KNNNNNNNNNNK','KNNNNNNNNNAA','.KNNNNNNNNK.','..KNnNNnNK..','...KNKKNK...',
+  '..KNK..KNK..','..KKK..KKK..'
+]];
+// Anodizer — a walking emitter; the halo ring is the whole point of it
+ART.shielder = [[
+  '..S......S..','...KKKKKK...','..KSSSSSSK..','.KSssSSssSK.','.KSSeSSeSSK.',
+  'KSSSSSSSSSSK','KSsSSSSSSsSK','KSSSSSSSSSSK','.KSSssssSSK.','..KKSSSSKK..',
+  '...KSK..KSK.','...KKK..KKK.'
+],[
+  '.S........S.','...KKKKKK...','..KSSSSSSK..','.KSssSSssSK.','.KSSeSSeSSK.',
+  'KSSSSSSSSSSK','KSsSSSSSSsSK','KSSSSSSSSSSK','.KSSssssSSK.','..KKSSSSKK..',
+  '..KSK....KSK','..KKK....KKK'
+]];
+
+// ---- mini-bosses: bigger than a hostile, smaller than a set piece ----
+ART.miniForeman = [[
+  '...KKKKKKKKKK...',
+  '..KMMMMMMMMMMK..',
+  '.KMWWWWWWWWWWMK.',
+  'KMWMMMMMMMMMMWMK',
+  'KMWMKAAAAAAKMWMK',
+  'KMWMKAeAAeAKMWMK',
+  'KMWMKAAAAAAKMWMK',
+  'KMWMMMMMMMMMMWMK',
+  'KMWWWWWWWWWWWWMK',
+  '.KMMWWWWWWWWMMK.',
+  '.KMWMMMMMMMMWMK.',
+  '..KMWRRRRRRWMK..',
+  '..KMWMMMMMMWMK..',
+  '..KKMK....KMKK..',
+  '..KKKK....KKKK..',
+  '................'
+],[
+  '...KKKKKKKKKK...',
+  '..KMMMMMMMMMMK..',
+  '.KMWWWWWWWWWWMK.',
+  'KMWMMMMMMMMMMWMK',
+  'KMWMKAAAAAAKMWMK',
+  'KMWMKAeAAeAKMWMK',
+  'KMWMKAAAAAAKMWMK',
+  'KMWMMMMMMMMMMWMK',
+  'KMWWWWWWWWWWWWMK',
+  '.KMMWWWWWWWWMMK.',
+  '.KMWMMMMMMMMWMK.',
+  '..KMWrrrrrrWMK..',
+  '..KMWMMMMMMWMK..',
+  '.KKMK......KMKK.',
+  '.KKKK......KKKK.',
+  '................'
+]];
+ART.miniHawk = [[
+  '................',
+  '..KK........KK..',
+  '.KNNK......KNNK.',
+  '.KNnNKKKKKKNnNK.',
+  '..KNNNNNNNNNNK..',
+  '.KNNNeNNNNeNNNK.',
+  'KNNNNNNNNNNNNNNK',
+  'KNnNNNNNNNNNNnNK',
+  'KNNNNNAAAANNNNNK',
+  '.KNNNNAAAANNNNK.',
+  '..KNNNNNNNNNNK..',
+  '...KKNNNNNNKK...',
+  '.....KNNNNK.....',
+  '......KKKK......',
+  '................',
+  '................'
+],[
+  '................',
+  '.KK..........KK.',
+  'KNNK........KNNK',
+  'KNnNKKKKKKKKNnNK',
+  '.KNNNNNNNNNNNNK.',
+  '.KNNNeNNNNeNNNK.',
+  'KNNNNNNNNNNNNNNK',
+  'KNnNNNNNNNNNNnNK',
+  'KNNNNNAAAANNNNNK',
+  '.KNNNNAAAANNNNK.',
+  '..KNNNNNNNNNNK..',
+  '...KKNNNNNNKK...',
+  '.....KNNNNK.....',
+  '......KKKK......',
+  '................',
+  '................'
+]];
+ART.miniMother = [[
+  '................',
+  '....KKKKKKKK....',
+  '..KKHHHHHHHHKK..',
+  '.KHHHHHHHHHHHHK.',
+  'KHHhhHHHHHHhhHHK',
+  'KHHhVeHHHHeVhHHK',
+  'KHHHHHHHHHHHHHHK',
+  'KHhHHHVVVVHHHhHK',
+  'KHHHHHVVVVHHHHHK',
+  '.KHHHHHVVHHHHHK.',
+  '.KHHhhHHHHhhHHK.',
+  '..KKHHHHHHHHKK..',
+  '..KHK.KHHK.KHK..',
+  '..KHK.KHHK.KHK..',
+  '..KKK.KKKK.KKK..',
+  '................'
+],[
+  '................',
+  '....KKKKKKKK....',
+  '..KKHHHHHHHHKK..',
+  '.KHHHHHHHHHHHHK.',
+  'KHHhhHHHHHHhhHHK',
+  'KHHhVeHHHHeVhHHK',
+  'KHHHHHHHHHHHHHHK',
+  'KHhHHHVVVVHHHhHK',
+  'KHHHHHVVVVHHHHHK',
+  '.KHHHHHVVHHHHHK.',
+  '.KHHhhHHHHhhHHK.',
+  '..KKHHHHHHHHKK..',
+  '.KHK..KHHK..KHK.',
+  '.KHK..KHHK..KHK.',
+  '.KKK..KKKK..KKK.',
+  '................'
+]];
+
 ART.bossPress = [[
   '..KKKKKKKKKKKKKKKKKK..',
   '.KMMMMMMMMMMMMMMMMMMK.',
@@ -1052,6 +1244,156 @@ ART.bossDerrick = [[
   '......KKKKKKKKKK......'
 ]];
 
+// THE SMELTER — squat furnace on legs. Twin stacks and a glowing mouth: you read
+// "this thing is full of fire" before it has done anything.
+ART.bossSmelter = [[
+  '..KKK.........KKK.....',
+  '..KDK.........KDK.....',
+  '..KDK.........KDK.....',
+  '.KKDKK.......KKDKK....',
+  'KMMMMMMKKKKKMMMMMMK...',
+  'KMWWWWWMMMMMWWWWWMK...',
+  'KMWMMMMMMMMMMMMMWMK...',
+  'KMWMKKKKKKKKKKKKMWMK..',
+  'KMWMKFFFFFFFFFFKMWMK..',
+  'KMWMKFfFFeeFFfFKMWMK..',
+  'KMWMKFFFeeeeFFFKMWMK..',
+  'KMWMKFfFFeeFFfFKMWMK..',
+  'KMWMKFFFFFFFFFFKMWMK..',
+  'KMWMKKKKKKKKKKKKMWMK..',
+  'KMWMMMMMMMMMMMMMWMK...',
+  'KMWWWWWWWWWWWWWWWMK...',
+  '.KMMMMMMMMMMMMMMMK....',
+  '..KKMMMMMMMMMMMKK.....',
+  '...KMWMK...KMWMK......',
+  '...KMWMK...KMWMK......',
+  '...KKMKK...KKMKK......',
+  '...KKKK.....KKKK......'
+],[
+  '...KKK.........KKK....',
+  '...KDK.........KDK....',
+  '...KDK.........KDK....',
+  '..KKDKK.......KKDKK...',
+  '.KMMMMMMKKKKKMMMMMMK..',
+  '.KMWWWWWMMMMMWWWWWMK..',
+  '.KMWMMMMMMMMMMMMMWMK..',
+  '.KMWMKKKKKKKKKKKKMWMK.',
+  '.KMWMKffFFFFFFffKMWMK.',
+  '.KMWMKfFFFeeFFFfKMWMK.',
+  '.KMWMKFFeeeeeeFFKMWMK.',
+  '.KMWMKfFFFeeFFFfKMWMK.',
+  '.KMWMKffFFFFFFffKMWMK.',
+  '.KMWMKKKKKKKKKKKKMWMK.',
+  '.KMWMMMMMMMMMMMMMWMK..',
+  '.KMWWWWWWWWWWWWWWWMK..',
+  '..KMMMMMMMMMMMMMMMK...',
+  '...KKMMMMMMMMMMMKK....',
+  '..KMWMK.....KMWMK.....',
+  '..KMWMK.....KMWMK.....',
+  '..KKMKK.....KKMKK.....',
+  '..KKKK.......KKKK.....'
+]];
+
+// THE SCRAPHERD — a spindly gantry with two hooked arms held wide and a caged
+// core. The silhouette is all negative space, so it never reads as another brute.
+ART.bossHerder = [[
+  'KGK................KGK',
+  'KGK................KGK',
+  'KGKK..............KKGK',
+  '.KGK....KKKKKK....KGK.',
+  '.KGKK..KDDDDDDK..KKGK.',
+  '..KGK.KDGGGGGGDK.KGK..',
+  '..KGKKDGgGGGGgGDKKGK..',
+  '...KGKDGGeGGeGGDKGK...',
+  '...KKKDGGGGGGGGDKKK...',
+  '....KKDGKGKGKGKGDKK...',
+  '.....KDGKGKGKGKGDK....',
+  '.....KDGGGGGGGGGDK....',
+  '.....KDGgGGGGgGGDK....',
+  '.....KKDGGGGGGGDKK....',
+  '......KKDDDDDDDKK.....',
+  '.......KKGGGGKK.......',
+  '........KGGGGK........',
+  '........KGKKGK........',
+  '.......KGK..KGK.......',
+  '.......KGK..KGK.......',
+  '.......KKK..KKK.......',
+  '......................'
+],[
+  '.KGK..............KGK.',
+  '.KGK..............KGK.',
+  'KKGK..............KGKK',
+  'KGK.....KKKKKK.....KGK',
+  'KGKK...KDDDDDDK...KKGK',
+  '.KGK..KDGGGGGGDK..KGK.',
+  '.KGKK.DGgGGGGgGD.KKGK.',
+  '..KGKKDGGeGGeGGDKKGK..',
+  '...KKKDGGGGGGGGDKKK...',
+  '....KKDGKGKGKGKGDKK...',
+  '.....KDGKGKGKGKGDK....',
+  '.....KDGGGGGGGGGDK....',
+  '.....KDGgGGGGgGGDK....',
+  '.....KKDGGGGGGGDKK....',
+  '......KKDDDDDDDKK.....',
+  '.......KKGGGGKK.......',
+  '........KGGGGK........',
+  '........KGKKGK........',
+  '......KGK....KGK......',
+  '......KGK....KGK......',
+  '......KKK....KKK......',
+  '......................'
+]];
+
+// THE GANTRY — top-heavy bruiser, two oversized fists and a head sunk between
+// them. Reads as "it is going to hit you" from across the yard.
+ART.bossGantry = [[
+  '.KKKK..........KKKK...',
+  'KNNNNK........KNNNNK..',
+  'KNOONK..KKKK..KNOONK..',
+  'KNOONKKKNNNNKKKNOONK..',
+  'KNOONKNNOOOONNKNOONK..',
+  'KNOONKNOeOOeONKNOONK..',
+  'KNNNNKNNOOOONNKNNNNK..',
+  '.KNNKKKNNNNNNKKKNNK...',
+  '..KKKKNNNNNNNNKKKK....',
+  '....KNNNNNNNNNNNK.....',
+  '...KNNnNNNNNNnNNNK....',
+  '...KNNNNNNNNNNNNNK....',
+  '...KNNOOOOOOOOOONK....',
+  '...KNNOOOOOOOOOONK....',
+  '...KNNnNNNNNNnNNNK....',
+  '....KNNNNNNNNNNNK.....',
+  '.....KKNNNNNNKK.......',
+  '......KNNKKNNK........',
+  '......KNNK.KNNK.......',
+  '.....KNNNK.KNNNK......',
+  '.....KKKKK.KKKKK......',
+  '......................'
+],[
+  '..KKKK........KKKK....',
+  '.KNNNNK......KNNNNK...',
+  '.KNOONK.KKKK.KNOONK...',
+  '.KNOONKKNNNNKKNOONK...',
+  '.KNOONKNNOOOONKNOONK..',
+  '.KNOONKNOeOOeONKNOONK.',
+  '.KNNNNKNNOOOONNKNNNNK.',
+  '..KNNKKKNNNNNNKKKNNK..',
+  '...KKKKNNNNNNNNKKKK...',
+  '....KNNNNNNNNNNNK.....',
+  '...KNNnNNNNNNnNNNK....',
+  '...KNNNNNNNNNNNNNK....',
+  '...KNNOOOOOOOOOONK....',
+  '...KNNOOOOOOOOOONK....',
+  '...KNNnNNNNNNnNNNK....',
+  '....KNNNNNNNNNNNK.....',
+  '.....KKNNNNNNKK.......',
+  '.....KNNKKKKNNK.......',
+  '....KNNK....KNNK......',
+  '...KNNNK....KNNNK.....',
+  '...KKKKK....KKKKK.....',
+  '......................'
+]];
+
 ART.mine = [[
   '..KKKK..','.KRRRRK.','KRReeRRK','KReeeeRK','KReeeeRK','KRReeRRK','.KRRRRK.','..KKKK..'
 ],[
@@ -1108,6 +1450,36 @@ const WEP_ART = {
   '....KMMK......KKKK',
   '....KKK...........'
   ],
+  tesla: [
+  '..................',
+  '.....KKKK.....GG..',
+  '...KKMMMMKKKK.GG..',
+  '..KMWWWWWWWMKKGGG.',
+  '..KMWWWWWWWMKKGGG.',
+  '...KKMMMMKKKK.GG..',
+  '....KMMK......GG..',
+  '....KKK...........'
+  ],
+  flamer: [
+  '..................',
+  '.....KKKKKKK...FF.',
+  '...KKMMMMMMKK.FFF.',
+  '..KMWWWWWWWWMKFFFF',
+  '..KMWWWWWWWWMKFFFF',
+  '...KKMMMMMMKK.FFF.',
+  '....KMMK.......FF.',
+  '....KKK...........'
+  ],
+  harpoon: [
+  '..............A...',
+  '.....KKKKKKKKAAA..',
+  '...KKMMMMMMMKA..A.',
+  '..KMWWWWWWWWWMAAA.',
+  '..KMWWWWWWWWWMA...',
+  '...KKMMMMMMMKAAA..',
+  '....KMMK......A...',
+  '....KKK...........'
+  ],
   needler: [
   '....G.G.G.........',
   '....G.G.G.........',
@@ -1137,7 +1509,12 @@ const SPR = {
   splitter: anim(ART.splitter, 2),
   spitter:  anim(ART.spitter, 2),
   charger:  anim(ART.charger, 2),
-  boss:     BOSSES.map(b => anim(ART[b.art], b.scale, b.pal))
+  hound:    anim(ART.hound, 2),
+  cask:     anim(ART.cask, 2),
+  gunner:   anim(ART.gunner, 2),
+  shielder: anim(ART.shielder, 2),
+  boss:     BOSSES.map(b => anim(ART[b.art], b.scale, b.pal)),
+  mini:     MINIS.map(b => anim(ART[b.art], b.scale, b.pal))
 };
 const FLASH = {
   player: SPR.player.map(whiten),
@@ -1145,11 +1522,14 @@ const FLASH = {
   runner: SPR.runner.map(whiten), brute: SPR.brute.map(whiten),
   mite: SPR.mite.map(whiten), splitter: SPR.splitter.map(whiten),
   spitter: SPR.spitter.map(whiten), charger: SPR.charger.map(whiten),
-  boss: SPR.boss.map(set => set.map(whiten))
+  hound: SPR.hound.map(whiten), cask: SPR.cask.map(whiten),
+  gunner: SPR.gunner.map(whiten), shielder: SPR.shielder.map(whiten),
+  boss: SPR.boss.map(set => set.map(whiten)),
+  mini: SPR.mini.map(set => set.map(whiten))
 };
-// bosses keep their sprites in a nested array, so resolve the set in one place
-function sprSet(e)   { return e.t === 'boss' ? SPR.boss[e.boss]   : SPR[e.t]; }
-function flashSet(e) { return e.t === 'boss' ? FLASH.boss[e.boss] : FLASH[e.t]; }
+// bosses and minis keep their sprites in a nested array, so resolve the set in one place
+function sprSet(e)   { return e.t === 'boss' ? SPR.boss[e.boss]   : e.t === 'mini' ? SPR.mini[e.mini]   : SPR[e.t]; }
+function flashSet(e) { return e.t === 'boss' ? FLASH.boss[e.boss] : e.t === 'mini' ? FLASH.mini[e.mini] : FLASH[e.t]; }
 
 // pick an animation frame from the global clock.
 // floored modulo — offsets go negative for entities spawned outside the arena,
@@ -1161,6 +1541,48 @@ function fr(set, speed, offset) {
 }
 
 const ICON_ART = {
+  'Incendiary Rounds': [
+    '....F.....','...FF.....','..FeF.....','..FeeF....','...AA.....',
+    '...AWA....','...AWA....','...aWa....','....a.....','..........'],
+  'Shock Capacitor': [
+    '.MMMMMMMM.','.M......M.','.M...GG.M.','.M..GG..M.','.M.GGGGGM.',
+    '.M....GG.M','.M...GG.M.','.M..GG..M.','.M......M.','.MMMMMMMM.'],
+  'Chain Solder': [
+    'GGG.......','G.G.......','GGGGG.....','..G.G.....','..GGGGG...',
+    '....G.G...','....GGGGG.','......G.G.','......GGG.','..........'],
+  'Overrun': [
+    '..........','.A...A...A','.AA..AA.AA','.AAA.AAAAA','.AAAAAAAAA',
+    '.AAAAAAAAA','.AAA.AAAAA','.AA..AA.AA','.A...A...A','..........'],
+  'Magnetic Bracing': [
+    '..SS..SS..','.SSSS.SSS.','SSSSS.SSSS','SSS....SSS','SSS....SSS',
+    'SSSSSSSSSS','.SSSSSSSS.','..ssssss..','WWW....WWW','WWW....WWW'],
+  'Thermal Lance': [
+    '....F.....','...FeF....','..FFeFF...','..FeeeF...','...FFF....',
+    '..MMMMM...','..MWWWM...','..MWWWM...','..MMMMM...','...MMM....'],
+  'Splinter Payload': [
+    'A...A...A.','.A..A..A..','..FFFFF...','.FFeeeFF..','AFFeeeFFA.',
+    '.FFeeeFF..','..FFFFF...','..A..A..A.','.A...A...A','A....A....'],
+  'Scrap Ward': [
+    '.SSSSSSSS.','SSssssssSS','SSsWWWWsSS','SSsWSSWsSS','SSsWSSWsSS',
+    '.SsWWWWsS.','.SsssssS..','..SsssS...','...SSS....','....S.....'],
+  'Arc Thrower': [
+    'MMM.......','MMM..GG...','MMM.GG....','MMMGGGGG..','MMM...GG..',
+    'MMM..GG...','MMM.GG..GG','MMM....GG.','MMM...GG..','MMM.......'],
+  'Slag Thrower': [
+    '..........','KKKKK.....','KMMMMK.FF.','KMWWWMKFFF','KMWWWMKFFF',
+    'KMMMMMKFFF','KKKKKK.FF.','..KMK.....','..KKK.....','..........'],
+  'Grapple Harpoon': [
+    '..........','MMMMMMMA..','MWWWWWWAA.','MMMMMMMA.A','.......A.A',
+    '........AA','........A.','.......AA.','..........','..........'],
+  'Blast Furnace': [
+    '.KK....KK.','.KD....KD.','KKKKKKKKKK','KMMMMMMMMK','KMFFFFFFMK',
+    'KMFeeeeFMK','KMFeeeeFMK','KMFFFFFFMK','KMMMMMMMMK','KKKKKKKKKK'],
+  'Hair Wire': [
+    '..........','.M........','.M.WWW....','.MW...W...','.M.....W..',
+    '.M...G.G..','.M....e...','.M...G.G..','.MMMMMMM..','..........'],
+  'Dead Weight': [
+    '..........','...KKKK...','..KMMMMK..','.KMMMMMMK.','KMWWWWWWMK',
+    'KMWKKKKWMK','KMWKMMKWMK','KMWWWWWWMK','KMMMMMMMMK','KKKKKKKKKK'],
   'Sharpened Rounds': [
     '....AA....','...AAAA...','...AAAA...','...AWWA...','...AWWA...',
     '...AWWA...','...AWWA...','...aWWa...','....aa....','....K.....'],
@@ -1643,7 +2065,17 @@ function reset() {
     regen: 0,
     scrapMult: 1, scrapBank: 0,
     weapons: [0, -1], slots: 1, wlvl: {}, cds: [0, 0], aims: [0, 0], mflashes: [0, 0],
-    frailty: 1, inTar: false, dragged: 0
+    frailty: 1, inTar: false, dragged: 0,
+    // ---- expansion systems: all zero until a card turns them on ----
+    burnLvl: 0, burnDps: 0, burnMul: 1,          // Incendiary Rounds
+    critLvl: 0, crit: 0,                          // Shock Capacitor
+    chainLvl: 0, chain: 0, chainFx: 0,            // Chain Solder
+    streakLvl: 0, streak: 0, streakT: 0,          // Overrun (kill streak)
+    slowLvl: 0, slowR: 0, slowAmt: 0,             // Magnetic Bracing
+    ventBurn: 0,                                  // Thermal Lance
+    splinter: 0,                                  // Splinter Payload
+    wardLvl: 0, wardCd: 0, wardCdMax: 14, wardUp: false, wardFx: 0,   // Scrap Ward
+    flameFx: 0, flameAng: 0                       // Slag Thrower muzzle cone
   };
   enemies = []; bullets = []; drops = []; parts = [];
   corpses = []; floats = []; banner = null; hitFx = 0;
@@ -1676,9 +2108,13 @@ function reset() {
 }
 
 // ---------- enemies ----------
-// past wave 20 enemies scale superlinearly to keep pace with compounding builds
-function lateScale() { return 1 + Math.pow(Math.max(0, wave - 6), 1.30) * 0.050; }
-function lateDmg()   { return 1 + Math.max(0, wave - 10) * 0.022; }
+// past wave 20 enemies scale superlinearly to keep pace with compounding builds.
+// Past wave 70 a second term kicks in: by then a strong build has hit every soft
+// cap it is ever going to hit, so the only thing left to move is the opposition.
+// Both terms are zero before their thresholds, so nothing about the early game moves.
+function deepScale()  { return 1 + Math.max(0, wave - 70) * 0.012; }
+function lateScale() { return (1 + Math.pow(Math.max(0, wave - 6), 1.30) * 0.050) * deepScale(); }
+function lateDmg()   { return (1 + Math.max(0, wave - 10) * 0.022) * (1 + Math.max(0, wave - 70) * 0.004); }
 
 function allKinds() {
   return [
@@ -1687,8 +2123,14 @@ function allKinds() {
     { t: 'mite',     hp: Math.round(6 + wave * 1.4),  spd: Math.round(Math.min(248, 132 + wave * 3.4)), dmg: 4,  r: 6,  val: 1, col: '#C9A227', w: wave >= 4 ? 6 : 0 },
     { t: 'brute',    hp: Math.round(40 + wave * 17),  spd: Math.round(Math.min(140, 40 + wave * 2.0)),  dmg: 13, r: 20, val: 3, col: '#3F8E80', w: wave >= 5 ? 4 : 0 },
     { t: 'splitter', hp: Math.round(26 + wave * 6.5), spd: Math.round(Math.min(132, 52 + wave * 1.9)),  dmg: 7,  r: 14, val: 2, col: '#A8A296', w: wave >= 6 ? 5 : 0 },
-    { t: 'spitter',  hp: Math.round(18 + wave * 4.2), spd: Math.round(Math.min(148, 64 + wave * 2.0)),  dmg: 6,  r: 12, val: 2, col: '#8E5FA8', w: wave >= 8 ? 4 : 0 },
-    { t: 'charger',  hp: Math.round(52 + wave * 9),   spd: Math.round(Math.min(138, 46 + wave * 2.2)),  dmg: 12, r: 16, val: 3, col: '#E0713A', w: wave >= 10 ? 4 : 0 }
+    { t: 'spitter',  hp: Math.round(18 + wave * 4.2), spd: Math.round(Math.min(148, 64 + wave * 2.0)),  dmg: 6,  r: 12, val: 2, col: '#8E5FA8', w: wave >= 10 ? 4 : 0 },
+    { t: 'charger',  hp: Math.round(52 + wave * 9),   spd: Math.round(Math.min(138, 46 + wave * 2.2)),  dmg: 12, r: 16, val: 3, col: '#E0713A', w: wave >= 10 ? 4 : 0 },
+    // each of these has exactly one idea. They die as fast as anything else their
+    // size — the difficulty is meant to come from the mix, not from any one of them.
+    { t: 'hound',    hp: Math.round(11 + wave * 3.4), spd: Math.round(Math.min(250, 118 + wave * 3.4)), dmg: 5,  r: 9,  val: 1, col: '#B4503C', w: wave >= 5 ? (wave < 10 ? 4 : 7) : 0 },
+    { t: 'cask',     hp: Math.round(30 + wave * 7),   spd: Math.round(Math.min(120, 44 + wave * 1.7)),  dmg: 7,  r: 15, val: 2, col: '#8E5FA8', w: wave >= 10 ? 4 : 0 },
+    { t: 'gunner',   hp: Math.round(20 + wave * 4.6), spd: Math.round(Math.min(140, 58 + wave * 1.9)),  dmg: 7,  r: 12, val: 2, col: '#6B7A82', w: wave >= 12 ? 4 : 0 },
+    { t: 'shielder', hp: Math.round(34 + wave * 8),   spd: Math.round(Math.min(126, 50 + wave * 1.8)),  dmg: 6,  r: 13, val: 4, col: '#7FB8D4', w: wave >= 16 ? 3 : 0 }
   ];
 }
 function enemyKinds() {
@@ -1720,7 +2162,8 @@ function spawn() {
 
   const e = { ...pick, x, y, maxHp: pick.hp, kx: 0, ky: 0, flash: 0 };
   // elites: rare, obviously marked, far tougher, and worth hauling in for
-  const eliteChance = wave >= 4 ? Math.min(0.34, 0.04 + (wave - 4) * 0.008) : 0;
+  const eliteChance = wave >= 4 ? Math.min(0.34 + Math.min(0.14, Math.max(0, wave - 70) * 0.002),
+                                           0.04 + (wave - 4) * 0.008) : 0;
   if (Math.random() < eliteChance) {
     e.elite = true;
     e.hp = e.maxHp = Math.round(e.hp * 3.4);
@@ -1745,16 +2188,36 @@ function spawn() {
 // by 10x, so any HP number is either a slog or a two-second melt. Bosses instead get
 // percentage armour, flat plating that blunts chip damage, a per-hit ceiling so no
 // single shot can chunk them, and a soft cap on how fast their health can drop at all.
+// ---- hard ceilings on the new systems ----
+// Every one of these is a flat number rather than a stacking multiplier, on purpose.
+// The wave-20 blowout came from multipliers that compounded per card; nothing added
+// here can compound, so the worst case for any of them is the number written below.
+const WARD_CUT   = 0.35;   // damage an Anodizer's field removes (never stacks)
+const WARD_R     = 132;    // reach of that field
+const CRIT_MUL   = 2.0;    // fixed. Crit cards buy chance, never bigger crits
+const CRIT_CAP   = 0.60;   // most shots you can ever crit with
+const CHAIN_CAP  = 0.55;   // most shots that can arc onward
+const CHAIN_FRAC = 0.45;   // arc damage as a share of the hit that spawned it
+const SLOW_CAP   = 0.40;   // hardest you can ever slow anything
+const STREAK_CAP = 6;      // kill-streak stacks
+const SPEED_CAP  = 430;    // px/s. Track Shoes and Hollow Frame used to run away with this
 const BOSS_MIN_FIGHT = 65;              // seconds a boss should survive at full throttle
+const MINI_MIN_FIGHT = 20;              // a mini-boss is a speed bump, not a set piece
 function bossArmour(e) {
-  return Math.min(0.50, 0.28 + (e.phase - 1) * 0.05 + Math.min(0.10, wave * 0.003));
+  if (e.t === 'mini') return Math.min(0.30, 0.16 + Math.min(0.08, wave * 0.002));
+  const base = Math.min(0.50, 0.28 + (e.phase - 1) * 0.05 + Math.min(0.10, wave * 0.003));
+  // the Scrapherd is only this tough while its pen is full — clear the crowd and
+  // it drops straight back to a normal boss. The HUD shows the number moving.
+  return e.plated ? Math.min(0.62, base + 0.15) : base;
 }
-function bossPlating(e) { return 1 + wave * 0.06; }
+function bossPlating(e) { return (e.t === 'mini' ? 0.5 : 1) * (1 + wave * 0.06); }
+function minFight(e) { return e.t === 'mini' ? MINI_MIN_FIGHT : BOSS_MIN_FIGHT; }
 
 // every source of damage to an enemy goes through here
-// bosses don't get shoved — pushing them around trivialised every fight
+// bosses don't get shoved — pushing them around trivialised every fight, and a
+// mini-boss you could kite into a corner would not be a fight at all
 function knock(e, ax, ay) {
-  if (e.t === 'boss') return;
+  if (heavy(e)) return;
   e.kx += ax; e.ky += ay;
 }
 // boss damage scales with your frame, so stacking Plating can't make you immune
@@ -1762,12 +2225,12 @@ function bossDmg(base) { return Math.round(base + p.maxHp * 0.075); }
 
 function dealDamage(e, raw) {
   let dmg = raw;
-  if (e.t === 'boss') {
+  if (heavy(e)) {
     dmg = (dmg - bossPlating(e)) * (1 - bossArmour(e));          // plating, then armour
-    dmg = Math.min(dmg, e.maxHp * 0.035);                        // per-hit ceiling
+    dmg = Math.min(dmg, e.maxHp * (e.t === 'mini' ? 0.06 : 0.035));   // per-hit ceiling
     if (dmg < 1) dmg = 1;                                        // chip always does something
     // soft throttle: past the per-second allowance, further damage is mostly absorbed
-    const allow = e.maxHp / BOSS_MIN_FIGHT;
+    const allow = e.maxHp / minFight(e);
     e.dmgWin = (e.dmgWin || 0);
     if (e.dmgWin + dmg > allow) {
       const over = e.dmgWin + dmg - allow;
@@ -1775,41 +2238,94 @@ function dealDamage(e, raw) {
     }
     e.dmgWin += dmg;
     e.armFx = 0.12;
-  } else if (e.elite) {
-    dmg = Math.max(1, dmg * 0.82);                               // elites are just tougher
+  } else {
+    // an Anodizer in range plates everything around it. Flat, non-stacking, and it
+    // dies with the emitter — so the counter is always "shoot the blue one first".
+    if (e.warded) dmg *= (1 - WARD_CUT);
+    if (e.elite) dmg = Math.max(1, dmg * 0.82);                  // elites are just tougher
   }
   e.hp -= dmg;
   return dmg;
 }
 
+// ---- burn: the damage-over-time that most of the new synergies feed ----
+// Deliberately not stackable. Applying burn again refreshes the timer and takes
+// the STRONGER of the two rates, so ten sources of ignition are not ten times the
+// burn — the fire-rate/crit builds get uptime out of it, never a damage spiral.
+function igniteMax() { return softKnee(effDmg() * 0.5 + p.burnDps, 26, 34); }
+// one hop of Chain Solder. Deliberately terminal — the target it finds cannot
+// pass the arc on, so no amount of chain chance turns into a room-clearing cascade.
+function chainTo(from, dmg) {
+  let best = null, bd = 175;
+  for (const q of enemies) {
+    if (q === from || q.hp <= 0) continue;
+    const d = Math.hypot(q.x - from.x, q.y - from.y);
+    if (d < bd) { bd = d; best = q; }
+  }
+  if (!best) return;
+  stats.damageDealt += dealDamage(best, dmg);
+  best.flash = .1;
+  if (p.burnLvl > 0) ignite(best);
+  arcs.push({ x1: from.x, y1: from.y, x2: best.x, y2: best.y, life: .16, max: .16 });
+  p.chainFx = 0.12;
+}
+
+function ignite(e, dps, secs) {
+  if (!p.burnLvl && !dps) return;
+  const rate = Math.min(dps === undefined ? p.burnDps : dps, igniteMax());
+  if (rate <= 0) return;
+  e.burn = Math.max(e.burn || 0, rate);
+  e.burnT = Math.max(e.burnT || 0, secs || 3);
+}
+
+// the reactive blast, split out because a breaking ward sets it off too
+function reactiveBurst() {
+  if (p.reactLvl <= 0) return;
+  p.reactFx = .28;
+  for (const q of enemies) {
+    if (Math.hypot(q.x - p.x, q.y - p.y) < 115) {
+      dealDamage(q, p.reactDmg); q.flash = .12;
+      const qa = Math.atan2(q.y - p.y, q.x - p.x);
+      knock(q, Math.cos(qa) * 380, Math.sin(qa) * 380);
+    }
+  }
+  burst(p.x, p.y, '#DCD5C6', 16);
+  shake = Math.max(shake, 14);
+}
+
 function hurtPlayer(raw) {
+  // SCRAP WARD eats one hit outright, then has to spend its whole cooldown before
+  // it can do it again. One hit per cycle is the point: it cannot out-heal damage,
+  // it just refuses the single worst hit in a fight.
+  if (p.wardUp) {
+    p.wardUp = false;
+    p.wardCd = p.wardCdMax;
+    p.wardFx = 0.5;
+    p.inv = Math.max(p.inv, 0.5);
+    shake = Math.max(shake, 10);
+    floats.push({ x: p.x, y: p.y - 18, txt: 'WARD', col: '#7FB8D4', life: .9, max: .9 });
+    burst(p.x, p.y, '#7FB8D4', 18);
+    AU.arc();
+    reactiveBurst();                 // a breaking ward sets your plating off as well
+    return false;
+  }
   const dmg = Math.max(1, Math.round(raw * p.frailty));
   p.hp -= dmg; p.inv = .65; shake = Math.max(shake, 12); hitFx = .45;
   floats.push({ x: p.x, y: p.y - 18, txt: '-' + dmg, col: '#E06A54', life: .8, max: .8 });
   burst(p.x, p.y, '#F0A93B', 10);
   AU.hurt();
-  if (p.reactLvl > 0) {
-    p.reactFx = .28;
-    for (const q of enemies) {
-      if (Math.hypot(q.x - p.x, q.y - p.y) < 115) {
-        dealDamage(q, p.reactDmg); q.flash = .12;
-        const qa = Math.atan2(q.y - p.y, q.x - p.x);
-        knock(q, Math.cos(qa) * 380, Math.sin(qa) * 380);
-      }
-    }
-    burst(p.x, p.y, '#DCD5C6', 16);
-    shake = Math.max(shake, 14);
-  }
+  reactiveBurst();
   if (p.hp <= 0) { die(); return true; }
   return false;
 }
 
-function bossAdd(type, x, y) {
-  const live = enemies.reduce((n, e) => n + (e.t === 'boss' ? 0 : 1), 0);
-  if (live >= 14 || enemies.length >= maxEnemies()) return;
+function bossAdd(type, x, y, cap) {
+  const live = enemies.reduce((n, e) => n + (heavy(e) ? 0 : 1), 0);
+  if (live >= (cap || 14) || enemies.length >= maxEnemies()) return;
   const k = kindStats(type);
+  if (!k) return;
   const hp = Math.max(1, Math.round(k.hp * 0.5));
-  enemies.push({ ...k, hp: hp, maxHp: hp, x: x, y: y, kx: 0, ky: 0, flash: 0 });
+  enemies.push({ ...k, hp: hp, maxHp: hp, x: x, y: y, kx: 0, ky: 0, flash: 0, add: true });
 }
 
 function spawnBoss() {
@@ -1822,6 +2338,28 @@ function spawnBoss() {
     val: Math.round(14 + wave * 1.5), col: '#F0A93B',
     x: W / 2, y: -70, kx: 0, ky: 0, flash: 0,
     atk: 2.2, wind: 0, slamFx: 0, st: 'walk', stT: 0, hatch: 5, phase: 1, dmgWin: 0, armFx: 0
+  });
+  bossSpawned = true;
+  AU.killBig();
+}
+
+// mini-bosses run on roughly a third of a main boss' health and pay out a third
+// of the scrap, so wave 5 never feels like wave 10 arrived early
+function spawnMini() {
+  const idx = MINIS.indexOf(miniFor(wave));
+  const b = MINIS[idx];
+  // Wave 5 is the first heavy anyone ever meets, on a rig with about four cards on
+  // it. Measured with a kiting bot, the original numbers here turned wave 5 into a
+  // wall that ended a quarter of all runs, so the first one is deliberately a
+  // fraction of the rest: it exists to teach the shape, not to end the run.
+  const green = wave < 10 ? 0.55 : wave < 20 ? 0.85 : 1;
+  const hp = Math.round((120 + wave * 56) * b.hpMul * green);
+  enemies.push({
+    t: 'mini', mini: idx, hp: hp, maxHp: hp, spd: b.spd,
+    dmg: Math.max(3, Math.round(b.dmg * (wave >= 25 ? 1 : wave >= 15 ? 0.78 : 0.5))), r: b.r,
+    val: Math.round(6 + wave * 0.7), col: '#F0A93B',
+    x: W / 2, y: -60, kx: 0, ky: 0, flash: 0,
+    atk: 1.8, wind: 0, phase: 1, dmgWin: 0, armFx: 0, st: 'walk', stT: 0
   });
   bossSpawned = true;
   AU.killBig();
@@ -1873,6 +2411,29 @@ function burst(x, y, col, n) {
 
 // ---------- update ----------
 function update(dt) {
+  // ---- Anodizer fields ----
+  // Resolved once a frame, before anything can deal damage, so what you see on the
+  // ring is exactly what the next bullet will hit. Heavies never take a field —
+  // an armoured boss hiding behind a plated crowd would be unreadable.
+  {
+    const emitters = [];
+    for (const e of enemies) {
+      if (e.t === 'shielder' && e.hp > 0) emitters.push({ x: e.x, y: e.y, r: WARD_R, src: e });
+      // the Scrapherd runs the same field over its whole pen, at longer reach
+      else if (e.t === 'boss' && e.boss === 6) emitters.push({ x: e.x, y: e.y, r: 240, src: e });
+    }
+    for (const e of enemies) {
+      if (e.warded) e.wardFx = 0.18;
+      e.wardFx = Math.max(0, (e.wardFx || 0) - dt);
+      e.warded = false;
+      if (heavy(e) || !emitters.length) continue;
+      for (const s of emitters) {
+        if (s.src === e) continue;
+        if (Math.hypot(e.x - s.x, e.y - s.y) < s.r) { e.warded = true; break; }
+      }
+    }
+  }
+
   // move
   let dx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
   let dy = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
@@ -1881,7 +2442,7 @@ function update(dt) {
   if (len) { dx /= len; dy /= len; }
   const dashing = p.dashT > 0;
   const mvx = dashing ? p.dashDx : dx, mvy = dashing ? p.dashDy : dy;
-  const mvs = (dashing ? p.speed * 3.6 : p.speed) * (p.inTar ? 0.55 : 1);
+  const mvs = (dashing ? effSpeed() * 3.6 : effSpeed()) * (p.inTar ? 0.55 : 1);
   p.x = Math.max(p.r, Math.min(W - p.r, p.x + mvx * mvs * dt));
   p.y = Math.max(p.r, Math.min(H - p.r, p.y + mvy * mvs * dt));
   p.inv = Math.max(0, p.inv - dt);
@@ -2025,6 +2586,28 @@ function update(dt) {
   if (p.regen > 0 && p.hp > 0) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   p.reactFx = Math.max(0, p.reactFx - dt);
 
+  // SCRAP WARD — rebuilds itself only while it is down
+  p.wardFx = Math.max(0, p.wardFx - dt);
+  if (p.wardLvl > 0 && !p.wardUp) {
+    p.wardCd = Math.max(0, p.wardCd - dt);
+    if (p.wardCd <= 0) {
+      p.wardUp = true;
+      p.wardFx = 0.4;
+      AU.pickup();
+      floats.push({ x: p.x, y: p.y - 22, txt: 'WARD UP', col: '#7FB8D4', life: .7, max: .7 });
+    }
+  }
+
+  // OVERRUN — the kill streak bleeds off the moment you stop killing
+  if (p.streak > 0) {
+    p.streakT -= dt;
+    if (p.streakT <= 0) { p.streak = 0; p.streakT = 0; }
+  }
+
+  // MAGNETIC BRACING — the drag field itself is passive; enemies read it below
+  p.flameFx = Math.max(0, p.flameFx - dt);
+  p.chainFx = Math.max(0, p.chainFx - dt);
+
   // barrel tracks the nearest target even between shots
   for (let sl = 0; sl < 2; sl++) {
     if (!hasSlot(sl)) continue;
@@ -2077,9 +2660,25 @@ function update(dt) {
       if (b.hit.includes(e)) continue;
       if (e.rage > 0) continue;              // invulnerable during a phase roar
       if (segDist(e.x, e.y, ox, oy, b.x, b.y) < e.r + 3) {
-        stats.damageDealt += dealDamage(e, b.dmg); e.flash = .1; AU.hit();
+        // crit first, because everything downstream keys off the same roll:
+        // the burn it applies, the arc it can throw, the number that floats up
+        const crit = effCrit() > 0 && Math.random() < effCrit();
+        const raw = b.dmg * (crit ? CRIT_MUL : 1);
+        stats.damageDealt += dealDamage(e, raw);
+        e.flash = crit ? .18 : .1; AU.hit();
         stats.hits++;
         b.hit.push(e);
+        if (crit) {
+          burst(e.x, e.y, '#F6E2B4', 7);
+          stats.crits = (stats.crits || 0) + 1;
+          // CRIT -> ARC COIL: a crit dumps the coil early instead of waiting out
+          // its clock. It never adds damage of its own, it only moves the cooldown.
+          if (p.arcLvl > 0 && p.arcCd > 0.35) p.arcCd = Math.max(0, p.arcCd - 0.45);
+        }
+        if (p.burnLvl > 0) ignite(e);
+        // CHAIN SOLDER: a crit always arcs, otherwise it rolls. The arc is a
+        // fraction of the hit and cannot arc again, so it is strictly one extra hop.
+        if (p.chainLvl > 0 && (crit || Math.random() < effChain())) chainTo(e, raw * CHAIN_FRAC);
         if (b.boom) {                       // flak shell bursts on whatever it touches
           for (const q of enemies) {
             if (q === e) continue;
@@ -2094,8 +2693,16 @@ function update(dt) {
           AU.mine();
         }
         burst(e.x, e.y, e.col, 3);
-        const a = Math.atan2(b.vy, b.vx);
-        knock(e, Math.cos(a) * 90, Math.sin(a) * 90);
+        if (b.pull) {
+          // the harpoon hauls its target back to you instead of shoving it away —
+          // which is the entire point of pairing it with anything that only works
+          // at arm's length (Slag Vent, mines, shards, the Slag Thrower)
+          const pa = Math.atan2(p.y - e.y, p.x - e.x);
+          knock(e, Math.cos(pa) * 470, Math.sin(pa) * 470);
+        } else {
+          const a = Math.atan2(b.vy, b.vx);
+          knock(e, Math.cos(a) * 90, Math.sin(a) * 90);
+        }
         if (b.hit.length > b.pierce) { bullets.splice(i, 1); break; }
       }
     }
@@ -2133,6 +2740,9 @@ function update(dt) {
     if (bm.charge > 0) {
       bm.charge -= dt;
       if (bm.charge <= 0) {
+        // a sighting line is a telegraph and nothing else — the Rivet Hawk's rivets
+        // do the damage. Without this guard it would still land the 1-damage floor.
+        if (bm.sight) { beams.splice(i, 1); continue; }
         bm.live = 0.22;
         AU.arc(); shake = Math.max(shake, 12);
         // hit if you are anywhere near the line it painted
@@ -2168,7 +2778,8 @@ function update(dt) {
     const wv = tarWarns[i];
     wv.t -= dt;
     if (wv.t <= 0) {
-      pools.push({ x: wv.x, y: wv.y, r: wv.r, life: 9, max: 9, dmg: wv.dmg, tick: 0.4 });
+      const lf = wv.life || 9;
+      pools.push({ x: wv.x, y: wv.y, r: wv.r, life: lf, max: lf, dmg: wv.dmg, tick: 0.4, hot: wv.hot });
       tarWarns.splice(i, 1);
       AU.mine();
       shake = Math.max(shake, 5);
@@ -2183,9 +2794,9 @@ function update(dt) {
     q.life -= dt;
     if (q.life <= 0) { pools.splice(i, 1); continue; }
     if (Math.hypot(p.x - q.x, p.y - q.y) < q.r) {
-      p.inTar = true;
+      if (!q.hot) p.inTar = true;                 // slag burns, it does not stick
       q.tick = (q.tick || 0) - dt;
-      if (q.tick <= 0 && p.inv <= 0) { q.tick = 1.1; if (hurtPlayer(q.dmg)) return; }
+      if (q.tick <= 0 && p.inv <= 0) { q.tick = q.hot ? 0.8 : 1.1; if (hurtPlayer(q.dmg)) return; }
     }
   }
 
@@ -2208,6 +2819,23 @@ function update(dt) {
     const dist = Math.hypot(p.x - e.x, p.y - e.y);
     let mv = e.spd;
 
+    // BURN ticks four times a second and goes through dealDamage like everything
+    // else, so a boss' armour and its damage throttle apply to fire exactly as they
+    // apply to bullets. Burn cannot be the thing that skips the throttle.
+    if (e.burnT > 0) {
+      e.burnT -= dt;
+      e.burnTick = (e.burnTick || 0) - dt;
+      if (e.burnTick <= 0) {
+        e.burnTick = 0.25;
+        stats.damageDealt += dealDamage(e, e.burn * 0.25 * p.burnMul);
+        e.wasBurning = true;
+        parts.push({ x: e.x + (Math.random() - .5) * e.r, y: e.y - e.r * .5,
+                     vx: (Math.random() - .5) * 20, vy: -30 - Math.random() * 40,
+                     life: .4, max: .4, col: Math.random() < .5 ? '#FF7A2F' : '#F0A93B', sz: 2 + Math.random() * 2 });
+      }
+      if (e.burnT <= 0) e.burn = 0;
+    }
+
     if (e.t === 'spitter') {
       // holds its distance and lobs acid instead of closing in
       e.fire = (e.fire === undefined ? 1.4 : e.fire) - dt;
@@ -2219,17 +2847,55 @@ function update(dt) {
         burst(e.x, e.y, '#8E5FA8', 4);
         AU.spit();
       }
-    } else if (e.t === 'boss') {
+    } else if (e.t === 'hound') {
+      // rushes the moment it can see you: a short, cheap lunge on a fixed clock.
+      // No windup ring, because it is not meant to be dodged — it is meant to make
+      // you stop standing still. Half a Slag Charger, at a quarter of the health.
+      e.lunge = (e.lunge === undefined ? 0.9 + Math.random() : e.lunge) - dt;
+      e.lungeT = (e.lungeT || 0) - dt;
+      if (e.lungeT > 0) { mv = e.spd * 2.6; }
+      else if (e.lunge <= 0 && dist < 300) { e.lunge = 1.9; e.lungeT = 0.32; }
+
+    } else if (e.t === 'gunner') {
+      // holds a firing line, paints it, then puts three rivets down it. The line is
+      // the whole fight: it is aimed where you ARE, so it always rewards moving.
+      e.fire = (e.fire === undefined ? 1.6 : e.fire) - dt;
+      if (dist < 210) mv = -e.spd * .7;
+      else if (dist < 275) mv = 0;
+      if (e.aimT > 0) {
+        e.aimT -= dt; mv = 0;
+        if (e.aimT <= 0) {
+          for (let k = 0; k < 3; k++)
+            ebullets.push({ x: e.x, y: e.y, vx: Math.cos(e.lockA) * (330 + k * 26),
+                            vy: Math.sin(e.lockA) * (330 + k * 26), dmg: e.dmg, life: 2.6, rivet: true });
+          burst(e.x, e.y, '#6B7A82', 5);
+          AU.spit();
+        }
+      } else if (e.fire <= 0 && dist < 420) {
+        e.fire = 3.0; e.aimT = 0.55; e.lockA = a;      // telegraph, then commit
+        beams.push({ x1: e.x, y1: e.y, x2: e.x + Math.cos(a) * 620, y2: e.y + Math.sin(a) * 620,
+                     charge: 0.55, live: 0, dmg: 0, sight: true });
+      }
+
+    } else if (e.t === 'shielder') {
+      // the emitter itself is a coward: it wants to sit behind the crowd it plates
+      if (dist < 220) mv = -e.spd * .55;
+      else if (dist < 300) mv = 0;
+      e.pulse = (e.pulse || 0) + dt;
+
+    } else if (e.t === 'boss' || e.t === 'mini') {
       e.kx = 0; e.ky = 0;                    // immovable
       e.atk -= dt;
       e.slamFx = Math.max(0, e.slamFx - dt);
       e.rage = Math.max(0, (e.rage || 0) - dt);
-      e.dmgWin = Math.max(0, (e.dmgWin || 0) - (e.maxHp / BOSS_MIN_FIGHT) * dt);
+      e.dmgWin = Math.max(0, (e.dmgWin || 0) - (e.maxHp / minFight(e)) * dt);
       e.armFx = Math.max(0, (e.armFx || 0) - dt);
 
-      // three phases — each one changes what the fight asks of you
+      // three phases — each one changes what the fight asks of you.
+      // Mini-bosses stay on phase 1 for their whole fight by design: one shape to
+      // learn, no roar, no mid-fight escalation.
       const frac = e.hp / e.maxHp;
-      const ph = frac > .66 ? 1 : frac > .33 ? 2 : 3;
+      const ph = e.t === 'mini' ? 1 : (frac > .66 ? 1 : frac > .33 ? 2 : 3);
       if (ph !== e.phase) {
         e.phase = ph;
         e.rage = 1.1;                        // brief invulnerable roar between phases
@@ -2247,7 +2913,69 @@ function update(dt) {
       const spdUp = 1 + (e.phase - 1) * 0.28;   // faster and angrier as it drops
       const veteran = wave >= 20;              // the first boss shows a trimmed kit
 
-      if (e.boss === 0) {                    // FOUNDRY PRESS
+      if (e.t === 'mini') {
+        // ---- SLAG FOREMAN — walk in, wind up, pound a ring out of the deck ----
+        if (e.mini === 0) {
+          if (e.wind > 0) {
+            e.wind -= dt; mv = 0;
+            if (e.wind <= 0) {
+              e.slamFx = .4;
+              shake = 18; AU.blast();
+              makeCrater(e.x, e.y, 110, 220);
+              rings.push({ x: e.x, y: e.y, r: 20, max: 330, spd: 360, dmg: bossDmg(e.dmg * .8), hit: false });
+              if (dist < 118 && p.inv <= 0 && hurtPlayer(bossDmg(e.dmg))) return;
+            }
+          } else if (e.atk <= 0 && dist < 190) {
+            e.wind = .7; e.atk = 3.1; mv = 0;
+          }
+
+        // ---- RIVET HAWK — orbits at range and stitches a painted line ----
+        } else if (e.mini === 1) {
+          if (dist < 210) mv = -e.spd * .8;
+          else if (dist < 285) mv = 0;
+          // constant sideways drift, so it is never where it was a second ago
+          e.orbit = (e.orbit === undefined ? (Math.random() < .5 ? 1 : -1) : e.orbit);
+          e.x += Math.cos(a + Math.PI / 2) * e.spd * 0.62 * e.orbit * dt;
+          e.y += Math.sin(a + Math.PI / 2) * e.spd * 0.62 * e.orbit * dt;
+          if (e.x < 60 || e.x > W - 60 || e.y < 60 || e.y > H - 60) e.orbit *= -1;
+          if (e.aimT > 0) {
+            e.aimT -= dt;
+            if (e.aimT <= 0) {
+              for (let k = 0; k < 5; k++)
+                ebullets.push({ x: e.x, y: e.y, vx: Math.cos(e.lockA) * (340 + k * 24),
+                                vy: Math.sin(e.lockA) * (340 + k * 24),
+                                dmg: bossDmg(e.dmg * .5), life: 2.6, rivet: true });
+              AU.spit(); shake = Math.max(shake, 6);
+            }
+          } else if (e.atk <= 0) {
+            e.atk = 2.4; e.aimT = 0.6; e.lockA = a;
+            beams.push({ x1: e.x, y1: e.y, x2: e.x + Math.cos(a) * 900, y2: e.y + Math.sin(a) * 900,
+                         charge: 0.6, live: 0, dmg: 0, sight: true });
+          }
+
+        // ---- HUSK MOTHER — a steady drip of husks, and a nova if you crowd her ----
+        } else {
+          e.brood = (e.brood === undefined ? 2.2 : e.brood) - dt;
+          if (e.brood <= 0) {
+            e.brood = 3.4;
+            for (let j = 0; j < 2; j++) bossAdd('splitter', e.x + (j ? 26 : -26), e.y + 20, 10);
+            AU.spit();
+          }
+          if (e.atk <= 0 && dist < 200) {
+            e.atk = 3.2;
+            const n = 14;
+            for (let k = 0; k < n; k++) {
+              const ang = k / n * Math.PI * 2 + gt;
+              ebullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 210, vy: Math.sin(ang) * 210,
+                              dmg: bossDmg(e.dmg * .5), life: 3 });
+            }
+            burst(e.x, e.y, '#8E5FA8', 16);
+            AU.spit();
+          }
+        }
+        mv *= 1;
+
+      } else if (e.boss === 0) {             // FOUNDRY PRESS
         if (e.wind > 0) {
           e.wind -= dt; mv = 0;
           if (e.wind <= 0) {
@@ -2369,6 +3097,142 @@ function update(dt) {
           }
         }
 
+      } else if (e.boss === 5) {             // THE SMELTER — burns the floor away
+        // walks you down slowly while the arena gets smaller. Everything it does
+        // leaves something behind, so the fight is about where you are allowed to be.
+        if (dist < 150) mv = -e.spd * .4;    // it does not want to touch you
+        mv *= spdUp;
+        e.bleed = (e.bleed === undefined ? 1.6 : e.bleed) - dt;
+        if (e.bleed <= 0) {
+          e.bleed = e.phase >= 3 ? 1.5 : e.phase === 2 ? 2.1 : 2.9;
+          // slag drips where it stands. Capped and timed, so the deck always
+          // reopens — a boss that could permanently delete the arena is not a fight.
+          if (pools.length + tarWarns.length < 9) {
+            tarWarns.push({ x: e.x, y: e.y, r: 64, t: 0.8, max: 0.8,
+                            dmg: bossDmg(e.dmg * .3), hot: true, life: 11 });
+            AU.reroll();
+          }
+        }
+        if (e.atk <= 0) {                    // flare: a fan of slag aimed at you
+          e.atk = e.phase >= 3 ? 2.0 : e.phase === 2 ? 2.6 : 3.2;
+          const arms = e.phase >= 3 ? 3 : e.phase === 2 ? 2 : 1;
+          for (let s = 0; s < arms; s++) {
+            const base = a + (s - (arms - 1) / 2) * 0.55;
+            for (let k = -2; k <= 2; k++) {
+              const ang = base + k * 0.11;
+              ebullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 240, vy: Math.sin(ang) * 240,
+                              dmg: bossDmg(e.dmg * .45), life: 3, hot: true });
+            }
+          }
+          burst(e.x, e.y, '#FF7A2F', 14);
+          AU.spit();
+        }
+        if (e.phase >= 3) {                  // final phase vents constantly as it turns
+          e.vent = (e.vent || 0) + dt * 1.5;
+          e.ventT = (e.ventT || 0) - dt;
+          if (e.ventT <= 0) {
+            e.ventT = 0.16;
+            for (const off of [0, Math.PI * 2 / 3, Math.PI * 4 / 3]) {
+              const ang = e.vent + off;
+              ebullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * 200, vy: Math.sin(ang) * 200,
+                              dmg: bossDmg(e.dmg * .3), life: 2.4, hot: true });
+            }
+          }
+        }
+
+      } else if (e.boss === 6) {             // THE SCRAPHERD — hides behind its pen
+        // keeps its distance and keeps the yard full. While enough of its herd is
+        // alive it is plated, so the fight is "thin the crowd, then hit the thing".
+        const herd = enemies.reduce((n, q) => n + (heavy(q) ? 0 : 1), 0);
+        e.plated = herd >= 6;
+        if (dist < 260) mv = -e.spd * .85;
+        else if (dist < 340) mv = 0;
+        mv *= spdUp;
+        e.pen = (e.pen === undefined ? 1.2 : e.pen) - dt;
+        if (e.pen <= 0) {
+          e.pen = e.phase >= 3 ? 1.5 : e.phase === 2 ? 2.0 : 2.6;
+          const kinds = ['grunt', 'runner', 'hound', 'mite', 'splitter'];
+          const n = e.phase >= 3 ? 3 : 2;
+          for (let j = 0; j < n; j++) {
+            const ang = Math.random() * Math.PI * 2, rr = 90 + Math.random() * 60;
+            bossAdd(kinds[Math.floor(Math.random() * kinds.length)],
+                    e.x + Math.cos(ang) * rr, e.y + Math.sin(ang) * rr, 18);
+          }
+          burst(e.x, e.y, '#A8C13A', 12);
+          AU.spit();
+        }
+        if (e.atk <= 0) {                    // a goad: drives its herd at you
+          e.atk = e.phase >= 3 ? 3.4 : 4.6;
+          for (const q of enemies) {
+            if (heavy(q)) continue;
+            const qa = Math.atan2(p.y - q.y, p.x - q.x);
+            q.kx += Math.cos(qa) * 330; q.ky += Math.sin(qa) * 330;
+            q.goad = 0.5;
+          }
+          e.goadFx = 0.5;
+          shake = Math.max(shake, 8);
+          AU.charge();
+        }
+        e.goadFx = Math.max(0, (e.goadFx || 0) - dt);
+
+      } else if (e.boss === 7) {             // THE GANTRY — closes and never stops
+        // the only main boss that genuinely wants to be on top of you. Both of its
+        // attacks are directional, so the answer is always "be somewhere else",
+        // never "stand further away".
+        if (e.st === 'lunge') {
+          mv = 0;
+          e.stT -= dt;
+          e.x += e.dax * (620 * spdUp) * dt;
+          e.y += e.day * (620 * spdUp) * dt;
+          if (e.stT <= 0) {
+            e.combo = (e.combo || 0) - 1;
+            if (e.combo > 0) { e.st = 'wind'; e.stT = 0.28; }
+            else { e.st = 'rest'; e.stT = 0.7; shake = 14; AU.blast(); makeCrater(e.x, e.y, 80, 180); }
+          }
+        } else if (e.st === 'wind') {
+          mv = -20; e.stT -= dt;
+          if (e.stT <= 0) {
+            e.st = 'lunge'; e.stT = 0.34;
+            e.dax = Math.cos(a); e.day = Math.sin(a);
+            AU.charge();
+          }
+        } else if (e.st === 'sweepwind') {
+          mv = 0; e.stT -= dt;
+          e.sweepA = a;                       // tracks you right up to the swing
+          if (e.stT <= 0) {
+            e.st = 'sweeping'; e.stT = 0.26;
+            shake = 20; AU.blast();
+            const arc = e.phase >= 3 ? Math.PI * 2 : Math.PI * 0.9;
+            const reach = 165;
+            // shortest angle between where you are and where the arm went
+            let da = Math.atan2(p.y - e.y, p.x - e.x) - e.sweepA;
+            da = Math.abs(Math.atan2(Math.sin(da), Math.cos(da)));
+            if (dist < reach && da < arc / 2 && p.inv <= 0) {
+              if (hurtPlayer(bossDmg(e.dmg))) return;
+            }
+            if (e.phase >= 2)
+              rings.push({ x: e.x, y: e.y, r: 26, max: 420, spd: 400, dmg: bossDmg(e.dmg * .6), hit: false });
+            for (const q of enemies) {
+              if (q === e || heavy(q)) continue;
+              const qa = Math.atan2(q.y - e.y, q.x - e.x);
+              knock(q, Math.cos(qa) * 320, Math.sin(qa) * 320);
+            }
+          }
+        } else if (e.st === 'sweeping') {
+          mv = 0; e.stT -= dt;
+          if (e.stT <= 0) { e.st = 'rest'; e.stT = 0.6; }
+        } else if (e.st === 'rest') {
+          mv = 0; e.stT -= dt;
+          if (e.stT <= 0) { e.st = 'walk'; }
+        } else {
+          mv *= spdUp;
+          if (e.atk <= 0) {
+            e.atk = e.phase >= 3 ? 1.9 : e.phase === 2 ? 2.4 : 3.0;
+            if (dist < 200) { e.st = 'sweepwind'; e.stT = 0.62; e.sweepA = a; }
+            else { e.st = 'wind'; e.stT = 0.42; e.combo = e.phase >= 2 ? 2 : 1; }
+          }
+        }
+
       } else {                               // RUST COLOSSUS
         e.stT -= dt;
         if (e.phase >= 3 && e.st === 'walk' && e.atk <= 0 && !e.sweeping) {
@@ -2422,12 +3286,43 @@ function update(dt) {
       }
     }
 
+    // MAGNETIC BRACING — drag on anything inside the field. Movement only: a boss
+    // is immune, and a committed charge still lands, so it slows the swarm without
+    // quietly cancelling the attacks you are supposed to dodge.
+    if (p.slowLvl > 0 && !heavy(e) && dist < p.slowR) {
+      mv *= (1 - Math.min(SLOW_CAP, p.slowAmt));
+      e.slowFx = 0.2;
+    }
+    e.slowFx = Math.max(0, (e.slowFx || 0) - dt);
+
     e.x += (Math.cos(a) * mv + e.kx) * dt;
     e.y += (Math.sin(a) * mv + e.ky) * dt;
     e.kx *= .88; e.ky *= .88;
 
     if (e.hp <= 0) {
       burst(e.x, e.y, e.col, 12);
+      // OVERRUN — every kill feeds the streak, whatever killed it
+      if (p.streakLvl > 0) { p.streak = Math.min(STREAK_CAP, p.streak + 1); p.streakT = 3; }
+      // SPLINTER PAYLOAD — anything that dies on fire bursts. The burst cannot
+      // ignite, so a crowd can never chain-detonate itself into infinity.
+      if (p.splinter > 0 && e.wasBurning && !heavy(e)) {
+        for (const q of enemies) {
+          if (q === e) continue;
+          if (Math.hypot(q.x - e.x, q.y - e.y) < 88) {
+            stats.damageDealt += dealDamage(q, p.splinter); q.flash = .12;
+            const qa = Math.atan2(q.y - e.y, q.x - e.x);
+            knock(q, Math.cos(qa) * 180, Math.sin(qa) * 180);
+          }
+        }
+        burst(e.x, e.y, '#FF7A2F', 16);
+        AU.mine();
+      }
+      if (e.t === 'cask') {                 // a burst cask leaves acid where it stood
+        pools.push({ x: e.x, y: e.y, r: 52, life: 4.5, max: 4.5,
+                     dmg: Math.max(2, Math.round(e.dmg * 0.5)), tick: 0.5 });
+        burst(e.x, e.y, '#8E5FA8', 18);
+        AU.spit();
+      }
       if (e.elite) { AU.killBig(); burst(e.x, e.y, '#F0A93B', 22); shake = Math.max(shake, 10); }
       else (e.r >= 14 ? AU.killBig() : AU.kill());
       stats.kills[e.t] = (stats.kills[e.t] || 0) + 1;
@@ -2496,14 +3391,25 @@ function update(dt) {
   // wave clock
   spawnT -= dt;
   if (spawnT <= 0) {
-    if (!bossWave) {                 // no filler spawns during a boss — its own adds are the pressure
+    if (!bossWave) {
       const n = spawnBatch();
       for (let i = 0; i < n && enemies.length < maxEnemies(); i++) spawn();
+      spawnT = spawnRate();
+    } else {
+      // A heavy used to be fought in a swept, empty yard, which made the arena feel
+      // dead around it. Now a thin trickle keeps coming — enough that you cannot
+      // stand still and pour everything into the boss, capped low enough that the
+      // boss is still the fight. Its own adds sit under the same ceiling.
+      const live = enemies.reduce((n, q) => n + (heavy(q) ? 0 : 1), 0);
+      // thinner trickle on the early heavies, for the same reason the early minis
+      // are thinner: pressure should arrive once you have a build to answer it with
+      const cap = isMiniWave(wave) ? (wave < 10 ? 2 : wave < 20 ? 3 : 5) : (wave < 20 ? 5 : 8);
+      if (live < cap && enemies.length < maxEnemies()) spawn();
+      spawnT = isMiniWave(wave) ? 3.0 : 2.4;
     }
-    spawnT = spawnRate();
   }
   if (bossWave) {
-    if (bossSpawned && !enemies.some(e => e.t === 'boss')) endWave();
+    if (bossSpawned && !enemies.some(e => heavy(e))) endWave();
   } else {
     waveTime -= dt;
     if (waveTime <= 0) endWave();
@@ -2591,24 +3497,45 @@ function draw() {
     const k = 1 - wv.t / wv.max;                  // 0 -> 1 as it closes
     const blink = Math.sin(gt * (10 + k * 34)) > 0 ? 1 : 0.28;
     ctx.globalAlpha = blink * (0.35 + k * 0.5);
-    ctx.fillStyle = 'rgba(142,95,168,0.5)';
+    ctx.fillStyle = wv.hot ? 'rgba(255,122,47,0.5)' : 'rgba(142,95,168,0.5)';
     ctx.beginPath(); ctx.arc(wv.x, wv.y, wv.r, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#D3A6E8';
+    ctx.strokeStyle = wv.hot ? '#FFD68C' : '#D3A6E8';
     ctx.lineWidth = 3;
     ctx.setLineDash([9, 7]);
     ctx.lineDashOffset = -gt * 40;
     ctx.beginPath(); ctx.arc(wv.x, wv.y, wv.r, 0, 7); ctx.stroke();
     ctx.setLineDash([]);
     // a closing ring makes the timing readable at a glance
-    ctx.strokeStyle = 'rgba(211,166,232,0.9)';
+    ctx.strokeStyle = wv.hot ? 'rgba(255,214,140,0.9)' : 'rgba(211,166,232,0.9)';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(wv.x, wv.y, wv.r * (1 - k), 0, 7); ctx.stroke();
     ctx.globalAlpha = 1;
   }
 
-  // tar pools
+  // pools — violet tar sticks and slows, orange slag burns and does not
   for (const q of pools) {
     const k = Math.min(1, q.life / 1.6);
+    if (q.hot) {
+      ctx.fillStyle = 'rgba(94,30,10,' + (0.55 * k) + ')';
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.fill();
+      const lg = ctx.createRadialGradient(q.x, q.y, q.r * 0.2, q.x, q.y, q.r);
+      lg.addColorStop(0, 'rgba(255,180,80,' + (0.55 * k) + ')');
+      lg.addColorStop(0.6, 'rgba(255,122,47,' + (0.35 * k) + ')');
+      lg.addColorStop(1, 'rgba(194,74,16,0)');
+      ctx.fillStyle = lg;
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,214,140,' + (0.6 * k) + ')'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.stroke();
+      // embers lifting off the slag
+      for (let i = 0; i < 5; i++) {
+        const a = gt * 1.4 + i * 1.26, rr = q.r * (0.25 + ((gt * 0.5 + i * 0.2) % 1) * 0.6);
+        ctx.globalAlpha = k * (0.8 - rr / q.r * 0.6);
+        ctx.fillStyle = i % 2 ? '#FFF6DC' : '#FF7A2F';
+        ctx.fillRect(q.x + Math.cos(a) * rr - 1.5, q.y + Math.sin(a) * rr - 1.5, 3, 3);
+        ctx.globalAlpha = 1;
+      }
+      continue;
+    }
     ctx.fillStyle = 'rgba(58,32,80,' + (0.5 * k) + ')';
     ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.fill();
     ctx.strokeStyle = 'rgba(142,95,168,' + (0.6 * k) + ')'; ctx.lineWidth = 2;
@@ -2703,6 +3630,48 @@ function draw() {
     const spd = 4 + e.spd * 0.045;              // faster enemies animate faster
     const img = e.flash > 0 ? fr(flashSet(e), spd, e.x) : fr(sprSet(e), spd, e.x);
     drawShadow(e.x, e.y, e.r);
+
+    // an Anodizer's reach, drawn on the floor so "who is protected" is never a guess
+    if (e.t === 'shielder' || (e.t === 'boss' && e.boss === 6)) {
+      const rr = e.t === 'shielder' ? WARD_R : 240;
+      const wob = 1 + Math.sin(gt * 2.5 + e.x * 0.02) * 0.02;
+      const wg = ctx.createRadialGradient(e.x, e.y, rr * 0.55, e.x, e.y, rr * wob);
+      wg.addColorStop(0, 'rgba(127,184,212,0)');
+      wg.addColorStop(0.82, 'rgba(127,184,212,0.07)');
+      wg.addColorStop(1, 'rgba(127,184,212,0.16)');
+      ctx.fillStyle = wg;
+      ctx.beginPath(); ctx.arc(e.x, e.y, rr * wob, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(127,184,212,' + (0.30 + Math.sin(gt * 3) * 0.1) + ')';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([7, 6]); ctx.lineDashOffset = gt * 22;
+      ctx.beginPath(); ctx.arc(e.x, e.y, rr * wob, 0, 7); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // a plated hostile carries a hexagonal shimmer of its own
+    if (e.warded) {
+      ctx.strokeStyle = 'rgba(127,184,212,' + (0.5 + Math.sin(gt * 9 + e.x) * 0.2) + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let k = 0; k <= 6; k++) {
+        const a2 = k / 6 * Math.PI * 2 + gt * 0.8;
+        const px = e.x + Math.cos(a2) * (e.r + 6), py = e.y + Math.sin(a2) * (e.r + 6);
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    // burning: a heat haze under the sprite, so fire is visible on a crowd at a glance
+    if (e.burnT > 0) {
+      const bg = ctx.createRadialGradient(e.x, e.y, 2, e.x, e.y, e.r * 1.7);
+      bg.addColorStop(0, 'rgba(255,122,47,0.38)');
+      bg.addColorStop(1, 'rgba(255,122,47,0)');
+      ctx.fillStyle = bg;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 1.7, 0, 7); ctx.fill();
+    }
+    // dragged by Magnetic Bracing
+    if (e.slowFx > 0) {
+      ctx.strokeStyle = 'rgba(63,142,128,0.45)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, 7); ctx.stroke();
+    }
     if (e.elite) {
       const pulse = 1 + Math.sin(gt * 4 + e.x * 0.05) * 0.08;
       const ag = ctx.createRadialGradient(e.x, e.y, e.r * 0.4, e.x, e.y, e.r * 1.9 * pulse);
@@ -2827,6 +3796,68 @@ function draw() {
       ctx.fillStyle = cg;
       ctx.beginPath(); ctx.arc(e.x, e.y, 54, 0, 7); ctx.fill();
     }
+    // ---- THE GANTRY ----
+    if (e.t === 'boss' && e.boss === 7) {
+      if (e.st === 'wind' || e.st === 'lunge') {  // the line it is about to cross
+        const la = e.st === 'lunge' ? Math.atan2(e.day, e.dax) : Math.atan2(p.y - e.y, p.x - e.x);
+        ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(la);
+        const k = e.st === 'lunge' ? 1 : 1 - Math.max(0, e.stT) / 0.42;
+        ctx.fillStyle = 'rgba(224,113,58,' + (0.10 + k * 0.22) + ')';
+        ctx.fillRect(0, -26, 260, 52);
+        ctx.strokeStyle = 'rgba(224,113,58,' + (0.5 + k * 0.4) + ')'; ctx.lineWidth = 2;
+        ctx.strokeRect(0, -26, 260, 52);
+        ctx.restore();
+      }
+      if (e.st === 'sweepwind' || e.st === 'sweeping') {   // the arc it is about to swing
+        const arc = e.phase >= 3 ? Math.PI * 2 : Math.PI * 0.9;
+        const k = e.st === 'sweeping' ? 1 : 1 - Math.max(0, e.stT) / 0.62;
+        ctx.fillStyle = 'rgba(224,113,58,' + (e.st === 'sweeping' ? 0.42 : 0.10 + k * 0.22) + ')';
+        ctx.beginPath();
+        ctx.moveTo(e.x, e.y);
+        ctx.arc(e.x, e.y, 165, (e.sweepA || 0) - arc / 2, (e.sweepA || 0) + arc / 2);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(240,169,59,' + (0.5 + k * 0.45) + ')'; ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, 165, (e.sweepA || 0) - arc / 2, (e.sweepA || 0) + arc / 2);
+        ctx.stroke();
+      }
+    }
+    // ---- THE SMELTER: heat bleeding off it, and a hard glow in its final phase ----
+    if (e.t === 'boss' && e.boss === 5) {
+      const hg = ctx.createRadialGradient(e.x, e.y, e.r * 0.3, e.x, e.y, e.r * (e.phase >= 3 ? 2.6 : 1.9));
+      hg.addColorStop(0, 'rgba(255,122,47,' + (0.18 + (e.phase - 1) * 0.09) + ')');
+      hg.addColorStop(1, 'rgba(255,122,47,0)');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r * (e.phase >= 3 ? 2.6 : 1.9), 0, 7); ctx.fill();
+    }
+    // ---- THE SCRAPHERD: a tether to everything it is currently plating ----
+    if (e.t === 'boss' && e.boss === 6) {
+      ctx.strokeStyle = 'rgba(168,193,58,' + (e.goadFx > 0 ? 0.5 : 0.16) + ')';
+      ctx.lineWidth = e.goadFx > 0 ? 2 : 1;
+      for (const q of enemies) {
+        if (heavy(q) || !q.warded) continue;
+        ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+      }
+    }
+    // ---- mini-boss slam: same language as the Press, at half the size ----
+    if (e.t === 'mini' && e.wind > 0) {
+      const k = 1 - e.wind / 0.7;
+      ctx.fillStyle = 'rgba(180,80,60,' + (0.10 + k * 0.20) + ')';
+      ctx.beginPath(); ctx.arc(e.x, e.y, 118, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(240,169,59,0.85)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(e.x, e.y, 118 * (1 - k * 0.82), 0, 7); ctx.stroke();
+      ctx.strokeStyle = 'rgba(180,80,60,' + (0.5 + Math.sin(gt * 30) * 0.35) + ')';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 8]); ctx.lineDashOffset = -gt * 40;
+      ctx.beginPath(); ctx.arc(e.x, e.y, 118, 0, 7); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (e.t === 'mini' && e.slamFx > 0) {
+      const k = 1 - e.slamFx / 0.4;
+      ctx.strokeStyle = 'rgba(240,169,59,' + (0.85 * (1 - k)) + ')';
+      ctx.lineWidth = 6 * (1 - k) + 1;
+      ctx.beginPath(); ctx.arc(e.x, e.y, 118 * k, 0, 7); ctx.stroke();
+    }
     if (e.t === 'boss' && e.wind > 0) {           // slam windup
       const k = 1 - e.wind / 0.8;                 // 0 -> 1 as it comes down
       ctx.fillStyle = 'rgba(180,80,60,' + (0.10 + k * 0.20) + ')';
@@ -2868,12 +3899,64 @@ function draw() {
       ctx.strokeStyle = 'rgba(224,113,58,0.75)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 8 + Math.sin(gt * 22) * 3, 0, 7); ctx.stroke();
     }
-    if (e.hp < e.maxHp && e.t !== 'boss') {
+    if (e.hp < e.maxHp && !heavy(e)) {           // heavies use the bar at the top
       const bw = e.r * 2;
       ctx.fillStyle = 'rgba(10,7,6,0.8)';
       ctx.fillRect(e.x - bw / 2 - 1, e.y - e.r - 12, bw + 2, 5);
       ctx.fillStyle = e.elite ? '#F0A93B' : '#A8C13A';
       ctx.fillRect(e.x - bw / 2, e.y - e.r - 11, bw * (e.hp / e.maxHp), 3);
+    }
+  }
+
+  // MAGNETIC BRACING — the drag field, drawn under everything you own
+  if (p.slowLvl > 0) {
+    const sg = ctx.createRadialGradient(p.x, p.y, p.slowR * 0.5, p.x, p.y, p.slowR);
+    sg.addColorStop(0, 'rgba(63,142,128,0)');
+    sg.addColorStop(1, 'rgba(63,142,128,0.10)');
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.slowR, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(63,142,128,0.22)'; ctx.lineWidth = 1;
+    ctx.setLineDash([5, 9]); ctx.lineDashOffset = -gt * 16;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.slowR, 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // SLAG THROWER — the cone it just put out
+  if (p.flameFx > 0) {
+    const k = p.flameFx / 0.12;
+    const reach = 150, half = 0.44;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.flameAng);
+    const layers = [
+      { r: reach,        col: 'rgba(194,74,16,' + (0.20 * k) + ')' },
+      { r: reach * 0.78, col: 'rgba(255,122,47,' + (0.34 * k) + ')' },
+      { r: reach * 0.5,  col: 'rgba(255,246,220,' + (0.42 * k) + ')' }
+    ];
+    for (const L of layers) {
+      ctx.fillStyle = L.col;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, L.r, -half, half); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // SCRAP WARD — a plate hanging over you while it is up
+  if (p.wardLvl > 0 && (p.wardUp || p.wardFx > 0)) {
+    const br = p.wardFx > 0 ? 1 + p.wardFx * 0.9 : 1;
+    ctx.strokeStyle = p.wardUp ? 'rgba(127,184,212,' + (0.55 + Math.sin(gt * 3) * 0.18) + ')'
+                               : 'rgba(127,184,212,' + (p.wardFx * 1.4) + ')';
+    ctx.lineWidth = p.wardUp ? 2 : 4;
+    ctx.beginPath();
+    for (let k = 0; k <= 6; k++) {
+      const a2 = k / 6 * Math.PI * 2 + gt * 0.5;
+      const px = p.x + Math.cos(a2) * (p.r + 11) * br, py = p.y + Math.sin(a2) * (p.r + 11) * br;
+      if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    if (p.wardUp) {
+      const g2 = ctx.createRadialGradient(p.x, p.y, p.r * 0.6, p.x, p.y, (p.r + 13) * br);
+      g2.addColorStop(0, 'rgba(127,184,212,0)');
+      g2.addColorStop(1, 'rgba(127,184,212,0.16)');
+      ctx.fillStyle = g2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, (p.r + 13) * br, 0, 7); ctx.fill();
     }
   }
 
@@ -2933,6 +4016,19 @@ function draw() {
     const ang = Math.atan2(dy, dx), len = Math.hypot(dx, dy);
     ctx.save();
     ctx.translate(bm.x1, bm.y1); ctx.rotate(ang);
+    if (bm.sight) {
+      // gunner / hawk firing line: a dashed thread that tightens as it locks on
+      const k = 1 - Math.max(0, bm.charge) / 0.6;
+      ctx.strokeStyle = 'rgba(107,122,130,' + (0.35 + k * 0.5) + ')';
+      ctx.lineWidth = 1 + k * 1.5;
+      ctx.setLineDash([9, 7]); ctx.lineDashOffset = -gt * 90;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len, 0); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(246,226,180,' + (0.4 + k * 0.5) + ')';
+      ctx.fillRect(0, -1.5 - k, len * k, 3 + k * 2);
+      ctx.restore();
+      continue;
+    }
     if (bm.charge > 0) {
       const k = 1 - bm.charge / 0.8;
       ctx.fillStyle = 'rgba(168,193,58,' + (0.10 + k * 0.16) + ')';
@@ -3003,33 +4099,41 @@ function draw() {
     ctx.restore();
   }
 
-  // enemy acid — a wet glowing bead with a tail, not a flat dot
+  // incoming fire — a wet glowing bead with a tail, not a flat dot.
+  // Three readable flavours: acid (violet), slag (orange, burns), rivet (steel, fast).
+  const EB_ACID  = { tail: '#8E5FA8', halo: ['rgba(211,166,232,0.55)', 'rgba(142,95,168,0.34)', 'rgba(142,95,168,0)'],
+                     rim: '#5C3A70', body: '#8E5FA8', hot: '#EBD3F5', sz: 1 };
+  const EB_SLAG  = { tail: '#C24A10', halo: ['rgba(255,214,140,0.6)', 'rgba(255,122,47,0.38)', 'rgba(194,74,16,0)'],
+                     rim: '#8E3D18', body: '#FF7A2F', hot: '#FFF6DC', sz: 1 };
+  const EB_RIVET = { tail: '#3A454B', halo: ['rgba(246,226,180,0.5)', 'rgba(107,122,130,0.3)', 'rgba(58,69,75,0)'],
+                     rim: '#3A454B', body: '#6B7A82', hot: '#F6E2B4', sz: 0.72 };
   for (const b of ebullets) {
+    const C = b.hot ? EB_SLAG : b.rivet ? EB_RIVET : EB_ACID;
     const sp = Math.hypot(b.vx, b.vy) || 1;
     const ux = b.vx / sp, uy = b.vy / sp;
-    const pulse = 1 + Math.sin(gt * 18 + b.x * 0.05) * 0.14;
+    const pulse = (1 + Math.sin(gt * 18 + b.x * 0.05) * 0.14) * C.sz;
     // tail
     for (let i = 1; i <= 5; i++) {
       const t = i / 5;
       ctx.globalAlpha = (1 - t) * 0.5;
-      ctx.fillStyle = '#8E5FA8';
+      ctx.fillStyle = C.tail;
       const r = (5 - t * 3.6) * pulse;
       ctx.beginPath(); ctx.arc(b.x - ux * i * 6, b.y - uy * i * 6, r, 0, 7); ctx.fill();
     }
     ctx.globalAlpha = 1;
     // halo
     const g = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, 15 * pulse);
-    g.addColorStop(0, 'rgba(211,166,232,0.55)');
-    g.addColorStop(0.45, 'rgba(142,95,168,0.34)');
-    g.addColorStop(1, 'rgba(142,95,168,0)');
+    g.addColorStop(0, C.halo[0]);
+    g.addColorStop(0.45, C.halo[1]);
+    g.addColorStop(1, C.halo[2]);
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(b.x, b.y, 15 * pulse, 0, 7); ctx.fill();
     // body and hot centre
-    ctx.fillStyle = '#5C3A70';
+    ctx.fillStyle = C.rim;
     ctx.beginPath(); ctx.arc(b.x, b.y, 6 * pulse, 0, 7); ctx.fill();
-    ctx.fillStyle = '#8E5FA8';
+    ctx.fillStyle = C.body;
     ctx.beginPath(); ctx.arc(b.x, b.y, 4.4 * pulse, 0, 7); ctx.fill();
-    ctx.fillStyle = '#EBD3F5';
+    ctx.fillStyle = C.hot;
     ctx.beginPath(); ctx.arc(b.x - ux * 1.2, b.y - uy * 1.2, 1.9 * pulse, 0, 7); ctx.fill();
   }
 
@@ -3120,11 +4224,12 @@ function drawHUD() {
 
   // wave + clock, or the boss bar on boss waves
   ctx.textAlign = 'center';
-  const bossE = enemies.find(e => e.t === 'boss');
+  const bossE = enemies.find(e => heavy(e));
   if (bossE) {
+    const isMini = bossE.t === 'mini';
     ctx.fillStyle = 'rgba(10,7,6,0.82)'; ctx.fillRect(W / 2 - 190, 14, 380, 46);
-    ctx.fillStyle = '#F0A93B'; ctx.font = 'bold 15px Courier New';
-    ctx.fillText(BOSSES[bossE.boss].n, W / 2, 32);
+    ctx.fillStyle = isMini ? '#8FA3A8' : '#F0A93B'; ctx.font = 'bold 15px Courier New';
+    ctx.fillText(isMini ? MINIS[bossE.mini].n : BOSSES[bossE.boss].n, W / 2, 32);
     ctx.fillStyle = '#2A2018'; ctx.fillRect(W / 2 - 176, 40, 352, 11);
     ctx.fillStyle = '#B4503C';
     ctx.fillRect(W / 2 - 176, 40, 352 * Math.max(0, bossE.hp / bossE.maxHp), 11);
@@ -3132,16 +4237,21 @@ function drawHUD() {
     ctx.strokeRect(W / 2 - 176.5, 39.5, 353, 12);
     ctx.fillStyle = '#DCD5C6'; ctx.font = 'bold 9px Courier New';
     ctx.fillText(Math.max(0, Math.ceil(bossE.hp)) + ' / ' + bossE.maxHp, W / 2, 49);
-    // phase markers at the thirds, so you can see the next escalation coming
-    ctx.fillStyle = '#0E0A08';
-    ctx.fillRect(W / 2 - 176 + 352 / 3, 40, 2, 11);
-    ctx.fillRect(W / 2 - 176 + 352 * 2 / 3, 40, 2, 11);
-    ctx.fillStyle = '#F0A93B'; ctx.font = 'bold 8px Courier New';
+    // phase markers at the thirds, so you can see the next escalation coming.
+    // A mini has one phase, so it gets no markers — the bar itself says "smaller fight".
+    if (!isMini) {
+      ctx.fillStyle = '#0E0A08';
+      ctx.fillRect(W / 2 - 176 + 352 / 3, 40, 2, 11);
+      ctx.fillRect(W / 2 - 176 + 352 * 2 / 3, 40, 2, 11);
+    }
+    ctx.fillStyle = isMini ? '#8FA3A8' : '#F0A93B'; ctx.font = 'bold 8px Courier New';
     ctx.textAlign = 'left';
-    ctx.fillText('PHASE ' + (bossE.phase || 1), W / 2 - 176, 61);
+    ctx.fillText(isMini ? 'MINI-BOSS' : 'PHASE ' + (bossE.phase || 1), W / 2 - 176, 61);
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#8FA3A8';
-    ctx.fillText('ARMOUR ' + Math.round(bossArmour(bossE) * 100) + '%', W / 2 + 176, 61);
+    // the Scrapherd's armour visibly moves as you clear its pen, so the counter
+    // to the fight is readable off the HUD rather than something you have to be told
+    ctx.fillStyle = bossE.plated ? '#A8C13A' : '#8FA3A8';
+    ctx.fillText('ARMOUR ' + Math.round(bossArmour(bossE) * 100) + '%' + (bossE.plated ? ' — PLATED BY ITS HERD' : ''), W / 2 + 176, 61);
     ctx.textAlign = 'center';
   } else {
     ctx.fillStyle = 'rgba(10,7,6,0.75)'; ctx.fillRect(W / 2 - 78, 14, 156, 46);
@@ -3194,6 +4304,27 @@ function drawHUD() {
   }
   pip(22, 'DASH', p.dashCd, p.dashCdMax, true);
   pip(120, 'BLAST', p.bombCd, p.bombCdMax, p.bombLvl > 0);
+
+  // ---- expansion readouts, only drawn once you own the thing they describe ----
+  if (p.wardLvl > 0) {
+    const x = 222, y = H - 42;
+    ctx.fillStyle = 'rgba(10,7,6,0.78)'; ctx.fillRect(x, y, 84, 28);
+    ctx.fillStyle = p.wardUp ? '#7FB8D4' : '#3A2E24';
+    ctx.font = 'bold 9px Courier New';
+    ctx.fillText('WARD', x + 8, y + 13);
+    ctx.fillStyle = '#2A2018'; ctx.fillRect(x + 8, y + 17, 68, 5);
+    ctx.fillStyle = p.wardUp ? '#7FB8D4' : '#3E6F8A';
+    ctx.fillRect(x + 8, y + 17, 68 * (p.wardUp ? 1 : 1 - p.wardCd / p.wardCdMax), 5);
+  }
+  if (p.streakLvl > 0 && p.streak > 0) {
+    const x = p.wardLvl > 0 ? 314 : 222;
+    ctx.fillStyle = 'rgba(10,7,6,0.78)'; ctx.fillRect(x, H - 42, 96, 28);
+    ctx.fillStyle = '#F0A93B'; ctx.font = 'bold 9px Courier New';
+    ctx.fillText('OVERRUN x' + Math.min(STREAK_CAP, p.streak), x + 8, H - 29);
+    ctx.fillStyle = '#2A2018'; ctx.fillRect(x + 8, H - 25, 80, 5);
+    ctx.fillStyle = '#F0A93B';
+    ctx.fillRect(x + 8, H - 25, 80 * Math.min(1, p.streak / STREAK_CAP), 5);
+  }
 }
 
 // ---------- upgrades ----------
@@ -3205,17 +4336,25 @@ function drawHUD() {
 // starting rate and roughly 240,000 dps. Stats now run flat up to a knee and then
 // saturate, so stacking still helps but can never run away.
 function softKnee(v, knee, span) { return v <= knee ? v : knee + (v - knee) / (1 + (v - knee) / span); }
-function effRate() { return softKnee(p.rate, 8, 10); }          // saturates near 18/s
+// OVERRUN feeds the streak in BEFORE the knee rather than multiplying the result.
+// That matters: a bonus applied after the cap would sail straight past it, which is
+// exactly the shape of the wave-20 blowout. Inside the knee, it is just uptime.
+function streakMul() { return 1 + Math.min(STREAK_CAP, p.streak) * 0.045 * (p.streakLvl || 0); }
+function effRate() { return softKnee(p.rate * streakMul(), 8, 10); }   // saturates near 18/s
 function effDmg()  { return softKnee(p.dmg, 70, 150); }         // saturates near 220
+function effSpeed() { return softKnee(p.speed, 300, SPEED_CAP - 300); }  // saturates near 430px/s
+function effCrit() { return Math.min(CRIT_CAP, p.crit); }
+function effChain() { return Math.min(CHAIN_CAP, p.chain); }
 function effScrapMult() { return Math.min(3, p.scrapMult); }    // hoarding has a ceiling
 
 let curTune = 1;                      // set while a mount is firing
-function addBullet(a, dmgMul, spdMul, pierceAdd, boom) {
+function addBullet(a, dmgMul, spdMul, pierceAdd, boom, opt) {
   const mx = p.x + Math.cos(a) * 20, my = p.y + Math.sin(a) * 20;
   bullets.push({
     x: mx, y: my,
     vx: Math.cos(a) * p.bulletSpd * spdMul, vy: Math.sin(a) * p.bulletSpd * spdMul,
-    dmg: effDmg() * dmgMul * curTune, hit: [], pierce: p.pierce + pierceAdd, boom: boom
+    dmg: effDmg() * dmgMul * curTune, hit: [], pierce: p.pierce + pierceAdd, boom: boom,
+    pull: opt && opt.pull, heavyShot: opt && opt.heavyShot
   });
 }
 const WEAPONS = [
@@ -3237,7 +4376,70 @@ const WEAPONS = [
 
   { id: 'needler', n: 'Needler', rateMul: 2.55, rangeMul: 0.82, cost: 22,
     d: 'WEAPON — a stream of tiny splinters. Shreds crowds, struggles on armour.',
-    fire(a) { addBullet(a + (Math.random() - .5) * 0.15, 0.35, 1.1, 0, false); } }
+    fire(a) { addBullet(a + (Math.random() - .5) * 0.15, 0.35, 1.1, 0, false); } },
+
+  // ---- expansion mounts: three weapons that scale off something other than
+  // "bigger number per bullet", so the build that wants them is a different build ----
+
+  { id: 'tesla', n: 'Arc Thrower', rateMul: 0.55, rangeMul: 0.95, cost: 27,
+    d: 'WEAPON — no shells. Jumps a bolt through up to four enemies at once, ignoring cover and crowds.',
+    fire(a) {
+      // fires no bullets at all, so Hot Loads, Piercing Tips and bullet speed do
+      // nothing for it — it lives or dies on raw damage and how packed the yard is
+      let from = { x: p.x, y: p.y };
+      const zapped = [];
+      const links = 4;
+      for (let c = 0; c < links; c++) {
+        let best = null, bd = c === 0 ? slotRange(0) : 165;
+        for (const e of enemies) {
+          if (zapped.includes(e) || e.rage > 0) continue;
+          const d = Math.hypot(e.x - from.x, e.y - from.y);
+          if (d < bd) { bd = d; best = e; }
+        }
+        if (!best) break;
+        const crit = effCrit() > 0 && Math.random() < effCrit();
+        stats.damageDealt += dealDamage(best, effDmg() * 0.78 * curTune * (crit ? CRIT_MUL : 1));
+        best.flash = crit ? .18 : .12;
+        if (p.burnLvl > 0) ignite(best);
+        arcs.push({ x1: from.x, y1: from.y, x2: best.x, y2: best.y, life: .18, max: .18 });
+        burst(best.x, best.y, '#DFF48A', crit ? 6 : 3);
+        stats.hits++;
+        zapped.push(best);
+        from = best;
+      }
+    } },
+
+  { id: 'flamer', n: 'Slag Thrower', rateMul: 1.5, rangeMul: 0.46, cost: 24,
+    d: 'WEAPON — a short cone of burning slag. Almost no impact damage; everything it touches keeps burning.',
+    fire(a) {
+      // the only weapon that ignites without Incendiary Rounds, and the reason a
+      // burn build has somewhere to start
+      p.flameFx = 0.12; p.flameAng = a;
+      const reach = slotRange(0) * 0.46 < 120 ? 150 : slotRange(0);
+      const half = 0.44;
+      for (const e of enemies) {
+        const d = Math.hypot(e.x - p.x, e.y - p.y);
+        if (d > reach + e.r) continue;
+        let da = Math.atan2(e.y - p.y, e.x - p.x) - a;
+        da = Math.abs(Math.atan2(Math.sin(da), Math.cos(da)));
+        if (da > half) continue;
+        stats.damageDealt += dealDamage(e, effDmg() * 0.14 * curTune);
+        e.flash = .07;
+        stats.hits++;
+        // its own burn, so it works on a rig that has bought no fire cards at all
+        ignite(e, Math.max(p.burnDps, effDmg() * 0.22 * curTune), 2.4);
+      }
+      for (let k = 0; k < 5; k++) {
+        const ang = a + (Math.random() - .5) * half * 2, sp = 190 + Math.random() * 190;
+        parts.push({ x: p.x + Math.cos(a) * 18, y: p.y + Math.sin(a) * 18,
+                     vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+                     life: .3, max: .3, col: k % 2 ? '#FF7A2F' : '#F0A93B', sz: 3 + Math.random() * 3 });
+      }
+    } },
+
+  { id: 'harpoon', n: 'Grapple Harpoon', rateMul: 0.34, rangeMul: 1.3, cost: 26,
+    d: 'WEAPON — a heavy hooked shot that skewers a line and drags everything it hits back toward you.',
+    fire(a) { addBullet(a, 2.4, 1.3, 2, false, { pull: true, heavyShot: true }); } }
 ];
 function wep(slot) { return WEAPONS[p.weapons[slot === undefined ? 0 : slot]] || WEAPONS[0]; }
 function hasSlot(i) { return i < p.slots && p.weapons[i] >= 0; }
@@ -3277,8 +4479,47 @@ const POOL = [
     maxed: () => p.slots > 1, f: () => { p.slots = 2; } },
   { n: 'Machining', d: 'Tune every weapon you carry: +16% damage, +7% fire rate (8 max)',
     base: 16, maxed: () => { for (let i = 0; i < p.slots; i++) if (p.weapons[i] >= 0 && tuneLvl(WEAPONS[p.weapons[i]].id) < 8) return false; return true; }, f: () => { for (let i = 0; i < p.slots; i++) if (p.weapons[i] >= 0) p.wlvl[WEAPONS[p.weapons[i]].id] = (p.wlvl[WEAPONS[p.weapons[i]].id] || 0) + 1; } },
-  { n: 'Coolant Line', d: 'Dash and blast recharge 22% faster', base: 10, maxed: () => p.dashCdMax <= 0.7001 && p.bombCdMax <= 2.4001, f: () => { p.dashCdMax = Math.max(0.7, p.dashCdMax * 0.78); p.bombCdMax = Math.max(2.4, p.bombCdMax * 0.78); } }
+  { n: 'Coolant Line', d: 'Dash and blast recharge 22% faster', base: 10, maxed: () => p.dashCdMax <= 0.7001 && p.bombCdMax <= 2.4001, f: () => { p.dashCdMax = Math.max(0.7, p.dashCdMax * 0.78); p.bombCdMax = Math.max(2.4, p.bombCdMax * 0.78); } },
+
+  // ================= EXPANSION: cards that exist to combo =================
+  // Each of these is deliberately mediocre alone and good next to something
+  // specific. See the COMBOS table below for what each one is pointed at.
+  { n: 'Incendiary Rounds', d: 'Shots set enemies alight — damage over time that refreshes on every hit',
+    base: 18, f: () => { p.burnLvl++; p.burnDps += 7; } },
+  { n: 'Shock Capacitor', d: '+8% chance for a shot to crit for double, and crits dump your Arc Coil early',
+    base: 17, maxed: () => p.crit >= CRIT_CAP - 0.0001, f: () => { p.critLvl++; p.crit = Math.min(CRIT_CAP, p.crit + 0.08); } },
+  { n: 'Chain Solder', d: '+11% chance a hit arcs to a second enemy. Crits always arc',
+    base: 19, maxed: () => p.chain >= CHAIN_CAP - 0.0001, f: () => { p.chainLvl++; p.chain = Math.min(CHAIN_CAP, p.chain + 0.11); } },
+  { n: 'Overrun', d: 'AUTO — each kill stacks fire rate for 3s, up to six kills deep',
+    base: 16, maxed: () => p.streakLvl >= 3, f: () => { p.streakLvl++; } },
+  { n: 'Magnetic Bracing', d: 'AUTO — a drag field around you slows everything that walks into it',
+    base: 15, maxed: () => p.slowAmt >= SLOW_CAP - 0.0001 && p.slowR >= 250,
+    f: () => { p.slowLvl++; p.slowR = p.slowLvl === 1 ? 155 : Math.min(250, p.slowR + 20); p.slowAmt = Math.min(SLOW_CAP, p.slowAmt + 0.13); } },
+  // hidden until you own the thing it upgrades — the "maxed" hook doubles as a
+  // prerequisite, so the bench never offers a card that would do nothing
+  { n: 'Thermal Lance', d: 'AUTO — your Slag Vent sets fire to whatever it burns, and reaches further',
+    base: 18, maxed: () => p.ventLvl === 0 || p.ventBurn >= 3,
+    f: () => { p.ventBurn++; p.ventDmg += 3; p.ventR += 14; } },
+  { n: 'Splinter Payload', d: 'Anything that dies while burning bursts, shredding what is around it',
+    base: 20, maxed: () => !hasBurnSource() || p.splinter >= 72,
+    f: () => { p.splinter += 18; } },
+  { n: 'Scrap Ward', d: 'AUTO — a plate that eats one hit outright, then rebuilds itself',
+    base: 20, maxed: () => p.wardLvl > 0 && p.wardCdMax <= 8.0001,
+    f: () => { p.wardLvl++; if (p.wardLvl === 1) { p.wardUp = true; p.wardCd = 0; } else p.wardCdMax = Math.max(8, p.wardCdMax * 0.84); } },
+
+  { n: 'Arc Thrower', d: 'WEAPON — no shells. Jumps a bolt through up to four enemies at once.', base: 27, wep: 5, f: () => { equipWeapon(5); } },
+  { n: 'Slag Thrower', d: 'WEAPON — a short cone of burning slag. Barely scratches; everything it touches keeps burning.', base: 24, wep: 6, f: () => { equipWeapon(6); } },
+  { n: 'Grapple Harpoon', d: 'WEAPON — a heavy hook that skewers a line and drags everything back to you.', base: 26, wep: 7, f: () => { equipWeapon(7); } }
 ];
+
+// does this rig have any way to set something on fire? Splinter Payload is hidden
+// until it does, so it can never be a dead card sitting on the bench.
+function hasBurnSource() {
+  if (p.burnLvl > 0 || p.ventBurn > 0) return true;
+  for (let i = 0; i < p.slots; i++)
+    if (p.weapons[i] >= 0 && WEAPONS[p.weapons[i]].id === 'flamer') return true;
+  return false;
+}
 
 
 // current value of whatever each upgrade moves — shown on owned shop cards
@@ -3301,6 +4542,17 @@ const NOW = {
   'Slag Vent':        () => p.ventDmg + ' dmg, ' + p.ventR + 'px',
   'Reactive Plating': () => p.reactDmg + ' dmg per hit',
   'Nanoweld':         () => p.regen.toFixed(1) + ' HP/s',
+  'Incendiary Rounds': () => Math.round(Math.min(p.burnDps, igniteMax())) + ' dmg/s burn' + (p.burnDps > igniteMax() + 1 ? ' (capped)' : ''),
+  'Shock Capacitor':  () => Math.round(effCrit() * 100) + '% crit for x2' + (p.crit > effCrit() + 0.001 ? ' (capped)' : ''),
+  'Chain Solder':     () => Math.round(effChain() * 100) + '% arc, ' + Math.round(CHAIN_FRAC * 100) + '% damage',
+  'Overrun':          () => '+' + Math.round((1 + STREAK_CAP * 0.045 * p.streakLvl - 1) * 100) + '% rate at 6 kills',
+  'Magnetic Bracing': () => Math.round(p.slowAmt * 100) + '% slower, ' + Math.round(p.slowR) + 'px',
+  'Thermal Lance':    () => p.ventBurn ? 'vent ignites · ' + p.ventR + 'px' : 'needs Slag Vent',
+  'Splinter Payload': () => p.splinter + ' burst damage, 88px',
+  'Scrap Ward':       () => 'eats 1 hit every ' + p.wardCdMax.toFixed(0) + 's',
+  'Arc Thrower':      () => 'equipped',
+  'Slag Thrower':     () => 'equipped',
+  'Grapple Harpoon':  () => 'equipped',
   'Scattergun':       () => 'equipped',
   'Rail Lance':       () => 'equipped',
   'Flak Mortar':      () => 'equipped',
@@ -3340,6 +4592,15 @@ const CURSES = [
   { n: 'Hollow Frame', curse: true, base: 9,
     d: 'RISK — +20% damage and move speed, but lose 22% of your max HP',
     f: () => { p.dmg = Math.round(p.dmg * 1.2); p.speed = Math.round(p.speed * 1.2); loseMaxHp(0.22); } },
+  { n: 'Blast Furnace', curse: true, base: 8,
+    d: 'RISK — +60% burn damage and +5 damage per shot, but you take 20% more damage',
+    f: () => { p.burnMul *= 1.6; p.dmg += 5; p.frailty *= 1.2; } },
+  { n: 'Hair Wire', curse: true, base: 8,
+    d: 'RISK — +18% crit chance, but lose 15% of your max HP',
+    f: () => { p.crit = Math.min(CRIT_CAP, p.crit + 0.18); loseMaxHp(0.15); } },
+  { n: 'Dead Weight', curse: true, base: 9,
+    d: 'RISK — +35% turret damage, but your dash recharges 60% slower',
+    f: () => { p.dmg = Math.round(p.dmg * 1.35); p.dashCdMax = Math.min(6, p.dashCdMax * 1.6); } },
   { n: 'Short Fuse', curse: true, base: 7,
     d: 'RISK — every ability recharges 35% faster, but you take 20% more damage',
     f: () => { p.dashCdMax = Math.max(0.5, p.dashCdMax * 0.65); p.bombCdMax = Math.max(1.8, p.bombCdMax * 0.65);
@@ -3482,7 +4743,41 @@ const ABILITIES = [
     stat: () => p.regen ? `${p.regen.toFixed(1)} HP per second` : 'LOCKED — buy Nanoweld at the bench' },
   { n: 'Orbital Shards', key: 'PASSIVE', icon: 'Orbital Shard',
     d: 'Copper fragments circle you, grinding anything they touch. Each shard you add also sharpens the others.',
-    stat: () => p.orbs ? `${p.orbs} shard${p.orbs > 1 ? 's' : ''} · ${p.orbDmg} damage per contact` : 'NONE — buy Orbital Shard at the bench' }
+    stat: () => p.orbs ? `${p.orbs} shard${p.orbs > 1 ? 's' : ''} · ${p.orbDmg} damage per contact` : 'NONE — buy Orbital Shard at the bench' },
+  { n: 'Scrap Ward', key: 'AUTO', icon: 'Scrap Ward',
+    d: 'Always on. A plate hangs over you and eats one hit outright — any hit, including a boss slam — then has to rebuild before it can do it again. It cannot heal you; it refuses one hit.',
+    stat: () => p.wardLvl ? `${p.wardUp ? 'UP' : 'rebuilding — ' + p.wardCd.toFixed(1) + 's'} · one hit every ${p.wardCdMax.toFixed(0)}s` : 'LOCKED — buy Scrap Ward at the bench' },
+  { n: 'Overrun', key: 'AUTO', icon: 'Overrun',
+    d: 'Always on. Every kill winds your mounts up for three seconds, stacking six kills deep. Stop killing and it unwinds immediately.',
+    stat: () => p.streakLvl ? `${Math.min(STREAK_CAP, p.streak)}/${STREAK_CAP} stacks · ${Math.round((streakMul() - 1) * 100)}% rate right now` : 'LOCKED — buy Overrun at the bench' },
+  { n: 'Magnetic Bracing', key: 'AUTO', icon: 'Magnetic Bracing',
+    d: 'Always on. A drag field around you slows anything inside it. Bosses shrug it off, and a charge already committed still lands.',
+    stat: () => p.slowLvl ? `${Math.round(p.slowAmt * 100)}% slower inside ${Math.round(p.slowR)}px` : 'LOCKED — buy Magnetic Bracing at the bench' },
+  { n: 'Burn', key: 'STATUS', icon: 'Incendiary Rounds',
+    d: 'Fire ticks four times a second and goes through armour the same way a bullet does. It never stacks — a second source refreshes the timer and keeps the stronger rate — so fire builds win on uptime, not on multiplying.',
+    stat: () => (p.burnLvl || p.ventBurn) ? `${Math.round(Math.min(p.burnDps, igniteMax()))} dmg/s · ceiling ${Math.round(igniteMax())} dmg/s` : 'NONE — buy Incendiary Rounds or a Slag Thrower' }
+];
+
+// ---- COMBOS: written down because a synergy nobody can find is not a synergy ----
+const COMBOS = [
+  { n: 'FIRE', cards: 'Incendiary Rounds + Hair Trigger / Needler',
+    d: 'Burn refreshes on every hit and never stacks, so the way to get value out of it is uptime: the more separate hits you land, the closer burn gets to running permanently on everything in the room. A Needler with Incendiary Rounds keeps a whole crowd alight; a Rail Lance with it barely notices.' },
+  { n: 'FIRE, CONTINUED', cards: 'Slag Thrower + Thermal Lance + Splinter Payload',
+    d: 'The Slag Thrower ignites without any fire cards at all, which is where a burn run usually starts. Thermal Lance makes your Slag Vent ignite too, so anything that closes on you is already burning. Splinter Payload then turns every burning death into a small burst — the crowd finishes itself.' },
+  { n: 'CRIT', cards: 'Shock Capacitor + Chain Solder',
+    d: 'Crits always arc. Buying crit chance is therefore buying arc chance, and the two cards multiply into each other rather than just stacking. Both are capped — 60% crit, 55% arc, x2 crit damage flat — so this is a strong pairing, not an open-ended one.' },
+  { n: 'CRIT, CONTINUED', cards: 'Shock Capacitor + Arc Coil',
+    d: 'A crit knocks time off your Arc Coil instead of adding damage. With enough crit chance the coil stops being on a timer and starts firing whenever the fight is busy — which is exactly when you want it.' },
+  { n: 'CLOSE RANGE', cards: 'Grapple Harpoon + Slag Vent / Scrap Mines / Orbital Shards',
+    d: 'Every other weapon pushes enemies away. The harpoon drags them in, which is only a good idea if standing next to things is where your damage already is. Pair it with anything that hurts what is touching you.' },
+  { n: 'CROWD CONTROL', cards: 'Magnetic Bracing + Slag Vent / Scrap Mines',
+    d: 'Slowing a crowd inside your own damage aura means each enemy spends longer inside it. Bracing does almost nothing on its own; next to an aura it roughly doubles how long each body sits in the fire.' },
+  { n: 'MOMENTUM', cards: 'Overrun + Scattergun / Needler / Splinter Payload',
+    d: 'The streak only pays while things are dying, so it wants a weapon that kills lots of small things quickly. It feeds into fire rate before the soft cap, which means it fills the gap between a mediocre rate and the ceiling — it cannot push you past it.' },
+  { n: 'TAKING HITS', cards: 'Scrap Ward + Reactive Plating + risk cards',
+    d: 'A breaking ward sets your Reactive Plating off, so the hit you refuse also clears the space around you. Because the ward eats one whole hit regardless of size, it pairs with the risk cards that raise damage taken — the biggest single hit in the fight is the one it is most likely to cancel.' },
+  { n: 'ANTI-SYNERGY', cards: 'Arc Thrower + Hot Loads / Piercing Tips / Long Barrel',
+    d: 'The Arc Thrower fires no bullets, so bullet speed and pierce do nothing for it whatsoever. Worth knowing before you stack them.' }
 ];
 
 const BESTIARY = [
@@ -3501,7 +4796,15 @@ const BESTIARY = [
   { t: 'grunt', n: 'ELITE (any type)', from: 'wave 4', w: 4, elite: true,
     d: 'From wave 4 any hostile can arrive as an elite — ringed in gold, over three times the health, hits harder, and drops four times the scrap.' },
   { t: 'charger', n: 'Slag Charger', from: 'wave 10', w: 10,
-    d: 'Winds up with a visible ring, then commits to a straight-line dash. Sidestep it and it overshoots.' }
+    d: 'Winds up with a visible ring, then commits to a straight-line dash. Sidestep it and it overshoots.' },
+  { t: 'hound', n: 'Scrap Hound', from: 'wave 5', w: 5,
+    d: 'Rushes on sight. Lunges at you every couple of seconds with no windup at all — it is not meant to be dodged, it is meant to punish standing still. Dies to almost anything.' },
+  { t: 'cask', n: 'Bloat Cask', from: 'wave 10', w: 10,
+    d: 'A drum of acid on legs. Killing it bursts it: the acid pool it leaves behind lasts several seconds, so do not pop one on top of yourself.' },
+  { t: 'gunner', n: 'Rivet Gunner', from: 'wave 12', w: 12,
+    d: 'Holds a firing line and paints it before it shoots, then puts three rivets straight down it. The telegraph is the whole fight — it aims where you are, never where you will be.' },
+  { t: 'shielder', n: 'Anodizer', from: 'wave 16', w: 16,
+    d: 'Harmless itself, and the reason nothing around it is dying. Everything inside its ring takes 35% less damage. The field does not stack and dies with the emitter: shoot the blue one first.' }
 ];
 
 function buildBook() {
@@ -3534,23 +4837,51 @@ function buildBook() {
   // bosses
   const bossRows = BOSSES.map((b, i) => {
     const at = [];
-    for (let w = 10; w <= 60; w += 10) if (bossFor(w).id === b.id) at.push('wave ' + w);
+    for (let w = 10; w <= BOSSES.length * 10; w += 10) if (bossFor(w).id === b.id) at.push('wave ' + w);
     return `<div class="entry">
        <img class="eico big" src="${SPR.boss[i][0].toDataURL ? SPR.boss[i][0].toDataURL() : ''}" alt="">
        <div class="etxt"><div class="en">${b.n}</div>
        <div class="ed">${b.d}</div>
-       <div class="ec">${at.join(', ')} · immune to knockback · armour rises each phase</div></div>
+       <div class="ec">${at.join(', ')} · three phases · immune to knockback · armour rises each phase</div></div>
      </div>`;
   }).join('');
-  document.getElementById('pgBoss').innerHTML = bossRows +
+  const miniRows = MINIS.map((b, i) => {
+    const at = [];
+    for (let w = 5; w <= MINIS.length * 10 + 5; w += 10) if (miniFor(w).id === b.id) at.push('wave ' + w);
+    return `<div class="entry">
+       <img class="eico big" src="${SPR.mini[i][0].toDataURL ? SPR.mini[i][0].toDataURL() : ''}" alt="">
+       <div class="etxt"><div class="en">${b.n} <span class="tag tAUTO">MINI</span></div>
+       <div class="ed">${b.d}</div>
+       <div class="ec">${at.join(', ')} · one phase · immune to knockback · roughly a third of a boss</div></div>
+     </div>`;
+  }).join('');
+  document.getElementById('pgBoss').innerHTML = bossRows + miniRows +
     `<div class="entry"><div class="etxt">
        <div class="en">FIGHTING THEM</div>
-       <div class="ed">Every tenth wave is a boss. A boss wave has no clock — it ends when the boss falls, and nothing else spawns to distract you.
-       Each boss has three phases marked on its health bar. Crossing one triggers a roar: it cannot be hurt during it,
+       <div class="ed">Something heavy arrives every fifth wave, alternating: a <b>mini-boss</b> on 5, 15, 25 and so on,
+       a <b>main boss</b> on 10, 20, 30. Neither has a clock — the wave ends when it dies — but the yard is no longer
+       swept for them. A thin trickle of hostiles keeps arriving throughout, so you can never simply stand still and
+       empty everything into the big one.<br><br>
+       A main boss has three phases marked on its health bar. Crossing one triggers a roar: it cannot be hurt during it,
        and a shockwave crosses the whole yard. <b>Dash through shockwaves</b> — the brief invulnerability is the counter.
        Their armour blunts every hit, no single shot can take more than a sliver, and their health can only fall so fast,
-       so expect to spend a minute on one no matter how strong you are.</div>
+       so expect to spend a minute on one no matter how strong you are.<br><br>
+       A mini-boss stays on one phase from start to finish, with a single attack pattern to read, thinner armour and
+       roughly a third of the health. It is a wall, not a set piece.</div>
      </div></div>`;
+
+  document.getElementById('pgCombo').innerHTML =
+    `<div class="entry"><div class="etxt">
+       <div class="en">HOW BUILDS ARE MEANT TO WORK</div>
+       <div class="ed">Most cards stack. A few of them multiply into each other, and those are the ones worth building
+       a run around. Everything below is a real interaction in the code, not a suggestion.
+       Every one of them has a hard ceiling written into it — crit damage is a flat x2, burn never stacks,
+       an arc cannot arc again — so a combo can carry a run without ever running away with it.</div>
+     </div></div>` +
+    COMBOS.map(c => `<div class="entry"><div class="etxt">
+       <div class="en">${c.n}</div>
+       <div class="ed"><b>${c.cards}</b><br>${c.d}</div>
+     </div></div>`).join('');
 
   // systems
   document.getElementById('pgSys').innerHTML = [
@@ -3566,7 +4897,12 @@ function buildBook() {
     ['TAR', 'The Widow marks a patch of floor with a blinking violet ring before it floods. Step off it before the ring closes. Once it lands the tar slows you badly and stings while you stand in it.'],
     ['MOUNTS', 'You start with one weapon. Buy TWIN MOUNT at the bench to bolt on a second — both fire at the same time, each at its own rate and its own range. Buying a weapon fills the empty mount, or replaces the second one; the card tells you which.'],
     ['MACHINING', 'Tunes every weapon you currently carry: +16% damage and +7% fire rate each time. With two mounts fitted, one card sharpens both.'],
-    ['MAXED GEAR', 'Once an upgrade hits its ceiling it stops appearing at the bench, so the offer never wastes a slot.'],
+    ['MAXED GEAR', 'Once an upgrade hits its ceiling it stops appearing at the bench, so the offer never wastes a slot. The same mechanism hides cards you cannot use yet: Thermal Lance only appears once you own a Slag Vent, and Splinter Payload only once you own something that sets fires.'],
+    ['BURN', 'Fire ticks four times a second and is blunted by armour exactly like a bullet. It does not stack — igniting something that is already burning refreshes the timer and keeps the stronger of the two rates. Fire builds are built out of uptime, not out of layering.'],
+    ['CRITS', 'A crit is a flat double, never more. Crit chance is capped at 60%. Crits also always trigger Chain Solder and knock time off your Arc Coil, which is where the crit build actually comes from.'],
+    ['FIELDS', 'An Anodizer plates everything around it for 35% less damage taken, and the Scrapherd runs the same field over its whole pen. Fields never stack and never apply to a boss — one is either in range of one or not.'],
+    ['SLAG', 'The Smelter bleeds molten slag onto the deck. It is marked before it lands like tar is, but it burns faster and does not slow you. It always burns out, so the arena always reopens.'],
+    ['THE STREAK', 'Overrun winds your mounts up as you kill and unwinds three seconds after you stop. It is added before the fire-rate soft cap rather than after it, so it closes the gap to the ceiling and cannot carry you through it.'],
     ['RANKS', 'Finish the Yard to promote. The workshop drops back to level 1, but every rank is permanently more health, more damage, and more tokens.']
   ].map(x => `<div class="entry"><div class="etxt"><div class="en">${x[0]}</div><div class="ed">${x[1]}</div></div></div>`).join('');
 
@@ -3574,8 +4910,9 @@ function buildBook() {
   document.getElementById('pgAbil').innerHTML = abils;
   document.getElementById('pgBest').innerHTML = beasts;
   document.getElementById('bkCount').textContent =
-    (POOL.length + CURSES.length) + ' CARDS · ' + ABILITIES.length + ' ABILITIES · ' +
-    BESTIARY.length + ' HOSTILES · ' + BOSSES.length + ' BOSSES';
+    (POOL.length + CURSES.length) + ' CARDS · ' + WEAPONS.length + ' WEAPONS · ' +
+    COMBOS.length + ' COMBOS · ' + BESTIARY.length + ' HOSTILES · ' +
+    BOSSES.length + ' BOSSES · ' + MINIS.length + ' MINIS';
 }
 
 // enemy stats at an arbitrary wave, without disturbing the live run
@@ -3776,7 +5113,7 @@ function showBook() {
   showOverlay('book');
 }
 function bookTab(id, btn) {
-  for (const pg of ['pgBuffs', 'pgAbil', 'pgBest', 'pgBoss', 'pgSys'])
+  for (const pg of ['pgBuffs', 'pgCombo', 'pgAbil', 'pgBest', 'pgBoss', 'pgSys'])
     document.getElementById(pg).style.display = pg === id ? 'block' : 'none';
   for (const b of document.querySelectorAll('.tab')) b.classList.remove('sel');
   btn.classList.add('sel');
@@ -3865,11 +5202,14 @@ function nextWave() {
   p.x = W / 2; p.y = H / 2;
   p.inv = 1;
   AU.waveStart();
-  bossWave = isBossWave(wave);
+  bossWave = isHeavyWave(wave);
   bossSpawned = false;
-  if (bossWave) {
+  if (isBossWave(wave)) {
     spawnBoss();
     banner = { t: 1.9, txt: bossFor(wave).n, sub: 'KILL IT TO CLEAR THE WAVE' };
+  } else if (isMiniWave(wave)) {
+    spawnMini();
+    banner = { t: 1.7, txt: miniFor(wave).n, sub: 'MINI-BOSS — KILL IT TO CLEAR THE WAVE' };
   } else {
     banner = { t: 1.6, txt: 'WAVE ' + wave, sub: enemyKinds().length > 2 ? 'BRUTES INBOUND' : 'HOLD THE LINE' };
   }
