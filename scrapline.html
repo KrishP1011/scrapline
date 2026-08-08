@@ -91,9 +91,9 @@
     width: 190px; height: 2px; margin-bottom: 18px;
     background: linear-gradient(90deg, transparent, #B4503C, transparent);
   }
-  /* 790px fitted four cards, so an offer of five wrapped to a lopsided 4 + 1 with a
-     lone card stranded on its own row. Three across gives a balanced 3 + 2. */
-  .cards { display: flex; gap: 11px; flex-wrap: wrap; justify-content: center; max-width: 584px; }
+  /* Four cards on one row: nothing wraps, the numbers read 1-4 left to right, and
+     the whole offer is taken in at a glance. */
+  .cards { display: flex; gap: 11px; flex-wrap: wrap; justify-content: center; max-width: 776px; }
   .card {
     width: 180px; padding: 14px 13px; cursor: pointer; text-align: left;
     background: linear-gradient(160deg, #241C16, #171210);
@@ -484,11 +484,16 @@
        transparent). The fade is a separate strip above the bar rather than part of it. */
     background: repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 2px, transparent 2px 4px), #0A0706;
   }
+  /* The fade above the bar means "there is more content up there, keep scrolling".
+     With four cards the bench no longer overflows, and a fade with nothing behind it
+     just looked like the cards had their bottoms cut off — so it only appears when
+     the overlay can actually scroll. */
   .actionbar::before {
     content: ''; position: absolute; left: 0; right: 0; top: -30px; height: 30px;
     background: linear-gradient(180deg, rgba(10,7,6,0), #0A0706);
-    pointer-events: none;
+    pointer-events: none; opacity: 0; transition: opacity .2s;
   }
+  .overlay.more .actionbar::before { opacity: 1; }
   .actionbar .row { margin-top: 10px; }
   .actionbar > button:first-child { margin-top: 0; }
   /* The bench is the one screen that should never need scrolling on a desktop
@@ -498,9 +503,9 @@
   #shop .rule { margin-bottom: 10px; }
   #shop .bank { margin-bottom: 10px; }
   #shop .dpsline { margin: -6px 0 10px; }
-  #shop .cards { gap: 9px; }
-  #shop .card { padding: 11px 12px; }
-  #shop .card .d { min-height: 26px; }
+  #shop .cards { gap: 10px; }
+  #shop .card { padding: 13px 12px; }
+  #shop .card .d { min-height: 34px; }
   #shop .actionbar { margin-top: 2px; padding-top: 8px; }
   #shop .actionbar .row { margin-top: 0; }
   .keyhint { margin-top: 8px; }
@@ -526,7 +531,7 @@
         <button class="go" id="next">NEXT WAVE</button>
       </div>
       <div class="hint keyhint">
-        <span class="key">1&ndash;5</span> buy &nbsp;·&nbsp;
+        <span class="key">1&ndash;4</span> buy &nbsp;·&nbsp;
         <span class="key">R</span> reroll &nbsp;·&nbsp;
         <span class="key">ENTER</span> next wave
       </div>
@@ -2029,6 +2034,9 @@ const AU = {
   blast()    { this.noise(0.42, 0.34, 800, 110); this.tone(96, 0.36, 'sawtooth', 0.14, 40); },
   mine()     { this.noise(0.30, 0.28, 1000, 140); this.tone(120, 0.22, 'square', 0.10, 45); },
   arc()      { this.tone(1500, 0.07, 'sawtooth', 0.045, 620); this.noise(0.07, 0.05, 5200); },
+  // a crit needs to be audible over a wall of ordinary hits: a bright upward ping
+  // that sits well above the muffled noise burst of a normal impact
+  crit()     { this.tone(1180, 0.07, 'square', 0.055, 2100); this.noise(0.05, 0.04, 7000); },
   spit()     { this.tone(300, 0.10, 'sine', 0.05, 620); },
   charge()   { this.tone(150, 0.55, 'sawtooth', 0.05, 420); },
   buy()      { this.tone(600, 0.07, 'square', 0.07); setTimeout(() => this.tone(900, 0.10, 'square', 0.07), 70); },
@@ -2152,6 +2160,8 @@ let corpses = [], floats = [], banner = null, hitFx = 0;
 let mines = [], arcs = [], ebullets = [];
 let rings = [], pools = [], tarWarns = [];
 let cracks = [], chunks = [], impacts = [], beams = [];
+let critFx = [];                 // expanding star-bursts marking a critical hit
+let critTextCd = 0;              // throttle on the floating CRIT numbers
 let sweepT = 0, sweepCount = 0, lastTokens = 0;
 let bossWave = false, bossSpawned = false;
 let pausedFrom = 'play';
@@ -2191,6 +2201,7 @@ function reset() {
   mines = []; arcs = []; ebullets = [];
   rings = []; pools = []; tarWarns = [];
   cracks = []; chunks = []; impacts = []; beams = [];
+  critFx = []; critTextCd = 0;
   sweepT = 0; sweepCount = 0;
   bossWave = false; bossSpawned = false;
   stats = { time: 0, kills: {}, totalKills: 0, scrapEarned: 0, shots: 0, hits: 0,
@@ -2362,6 +2373,31 @@ function dealDamage(e, raw) {
 // the STRONGER of the two rates, so ten sources of ignition are not ten times the
 // burn — the fire-rate/crit builds get uptime out of it, never a damage spiral.
 function igniteMax() { return softKnee(effDmg() * 0.5 + p.burnDps, 26, 34); }
+// ---- critical hit feedback ----
+// At 60% crit and 18 shots a second a crit can happen ten times a second, so this
+// has to read instantly without burying the screen. Three layers, each throttled
+// differently: every crit gets the ring and sparks, the floating number is rate
+// limited so it never becomes a wall of text, and the sound rides the same limit.
+function critHit(e, dmg) {
+  if (critFx.length < 24) {
+    critFx.push({ x: e.x, y: e.y, r: e.r, life: 0.34, max: 0.34, ang: Math.random() * Math.PI });
+  }
+  burst(e.x, e.y, '#FFF6DC', 8);
+  for (let i = 0; i < 4; i++) {           // gold shards thrown off the impact
+    const a = Math.random() * Math.PI * 2, s = 120 + Math.random() * 190;
+    parts.push({ x: e.x, y: e.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+                 life: .38, max: .38, col: i % 2 ? '#F0A93B' : '#FFF6DC', sz: 2 + Math.random() * 3 });
+  }
+  e.flash = Math.max(e.flash, .2);
+  if (critTextCd <= 0) {
+    critTextCd = 0.16;                    // at most a few numbers a second
+    floats.push({ x: e.x, y: e.y - e.r - 10, txt: Math.round(dmg) + '!', col: '#FFF6DC',
+                  life: .75, max: .75, crit: true });
+    AU.crit();
+    shake = Math.max(shake, 3);
+  }
+}
+
 // one hop of Chain Solder. Deliberately terminal — the target it finds cannot
 // pass the arc on, so no amount of chain chance turns into a room-clearing cascade.
 function chainTo(from, dmg) {
@@ -2773,12 +2809,13 @@ function update(dt) {
         // the burn it applies, the arc it can throw, the number that floats up
         const crit = effCrit() > 0 && Math.random() < effCrit();
         const raw = b.dmg * (crit ? CRIT_MUL : 1);
-        stats.damageDealt += dealDamage(e, raw);
+        const done = dealDamage(e, raw);
+        stats.damageDealt += done;
         e.flash = crit ? .18 : .1; AU.hit();
         stats.hits++;
         b.hit.push(e);
         if (crit) {
-          burst(e.x, e.y, '#F6E2B4', 7);
+          critHit(e, done);
           stats.crits = (stats.crits || 0) + 1;
           // CRIT -> ARC COIL: a crit dumps the coil early instead of waiting out
           // its clock. It never adds damage of its own, it only moves the cooldown.
@@ -2817,6 +2854,12 @@ function update(dt) {
     }
   }
 
+  // crit bursts
+  critTextCd = Math.max(0, critTextCd - dt);
+  for (let i = critFx.length - 1; i >= 0; i--) {
+    critFx[i].life -= dt;
+    if (critFx[i].life <= 0) critFx.splice(i, 1);
+  }
   // ground scars fade
   for (let i = cracks.length - 1; i >= 0; i--) { cracks[i].life -= dt; if (cracks[i].life <= 0) cracks.splice(i, 1); }
   // thrown debris
@@ -4254,13 +4297,47 @@ function draw() {
     ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
   }
 
+  // critical hits — a snapping ring with four spikes, drawn over the target so it
+  // reads even in a crowd. Short life on purpose: it is a punctuation mark, not a
+  // light show, and several can be on screen at once.
+  for (const c of critFx) {
+    const k = 1 - c.life / c.max;              // 0 -> 1 over its life
+    const rr = c.r + 6 + k * 26;
+    const fade = 1 - k;
+    ctx.globalAlpha = fade;
+    ctx.strokeStyle = '#FFF6DC';
+    ctx.lineWidth = 3 * fade + 0.5;
+    ctx.beginPath(); ctx.arc(c.x, c.y, rr, 0, 7); ctx.stroke();
+    ctx.strokeStyle = 'rgba(240,169,59,' + (0.8 * fade) + ')';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const a = c.ang + i * Math.PI / 2;
+      const i0 = rr * 0.72, i1 = rr + 12 * (1 - k);
+      ctx.beginPath();
+      ctx.moveTo(c.x + Math.cos(a) * i0, c.y + Math.sin(a) * i0);
+      ctx.lineTo(c.x + Math.cos(a) * i1, c.y + Math.sin(a) * i1);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // floating text
   ctx.textAlign = 'center';
-  ctx.font = 'bold 13px Courier New';
   for (const fl of floats) {
     ctx.globalAlpha = Math.min(1, fl.life / fl.max * 1.6);
-    ctx.fillStyle = '#140F0C'; ctx.fillText(fl.txt, fl.x + 1, fl.y + 1);
-    ctx.fillStyle = fl.col;    ctx.fillText(fl.txt, fl.x, fl.y);
+    if (fl.crit) {
+      // crit numbers are bigger and pop outward as they rise, so the size itself
+      // tells you it was a crit before you have read the number
+      const pop = 1 + (1 - fl.life / fl.max) * 0.25;
+      ctx.font = 'bold ' + Math.round(17 * pop) + 'px Courier New';
+      ctx.fillStyle = '#140F0C'; ctx.fillText(fl.txt, fl.x + 1.5, fl.y + 1.5);
+      ctx.fillStyle = '#F0A93B'; ctx.fillText(fl.txt, fl.x, fl.y);
+      ctx.fillStyle = fl.col;    ctx.fillText(fl.txt, fl.x, fl.y - 1);
+    } else {
+      ctx.font = 'bold 13px Courier New';
+      ctx.fillStyle = '#140F0C'; ctx.fillText(fl.txt, fl.x + 1, fl.y + 1);
+      ctx.fillStyle = fl.col;    ctx.fillText(fl.txt, fl.x, fl.y);
+    }
   }
   ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
@@ -4528,11 +4605,13 @@ const WEAPONS = [
         }
         if (!best) break;
         const crit = effCrit() > 0 && Math.random() < effCrit();
-        stats.damageDealt += dealDamage(best, effDmg() * 0.78 * curTune * (crit ? CRIT_MUL : 1));
+        const done = dealDamage(best, effDmg() * 0.78 * curTune * (crit ? CRIT_MUL : 1));
+        stats.damageDealt += done;
         best.flash = crit ? .18 : .12;
         if (p.burnLvl > 0) ignite(best);
         arcs.push({ x1: from.x, y1: from.y, x2: best.x, y2: best.y, life: .18, max: .18 });
-        burst(best.x, best.y, '#DFF48A', crit ? 6 : 3);
+        burst(best.x, best.y, '#DFF48A', 3);
+        if (crit) { critHit(best, done); stats.crits = (stats.crits || 0) + 1; }
         stats.hits++;
         zapped.push(best);
         from = best;
@@ -4783,9 +4862,13 @@ function drawCard(exclude) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// how many cards the bench puts in front of you. Four rather than five: the offer
+// fits on one row, every card is numbered by the key that buys it, and the choice
+// stays a choice instead of a wall to read through.
+const OFFER_SLOTS = 4;
 function makeOffer() {
   const pool = offerPool();
-  const pick = [...pool].sort(() => Math.random() - .5).slice(0, 5);
+  const pick = [...pool].sort(() => Math.random() - .5).slice(0, OFFER_SLOTS);
   if (Math.random() < 0.42) {                 // a risk card usually shows up
     pick[Math.floor(Math.random() * pick.length)] = CURSES[Math.floor(Math.random() * CURSES.length)];
   }
@@ -5294,6 +5377,7 @@ function endWave() {
   mines.length = 0; arcs.length = 0; ebullets.length = 0;
   rings.length = 0; pools.length = 0; tarWarns.length = 0;
   cracks.length = 0; chunks.length = 0; impacts.length = 0; beams.length = 0;
+  critFx.length = 0;
   sweepCount = drops.length;
   banner = { t: 1.4, txt: 'WAVE ' + wave + ' CLEAR', sub: drops.length ? 'HAULING IN ' + drops.length + ' SCRAP' : 'FLOOR IS CLEAN' };
 }
@@ -5428,7 +5512,8 @@ function buildSummary() {
     '<div class="tokrow">' + tokenPip('+' + lastTokens, true) + ' EARNED' +
       '<span>' + META.tokens + ' banked · best wave ' + META.bestWave + ' · run ' + META.runs + '</span></div>' +
     '<div class="foot">accuracy ' + acc + '%  ·  ' + (stats.elites || 0) + ' elites  ·  best wave ' + stats.bestWaveKills +
-      ' kills  ·  ' + Math.round(stats.damageDealt).toLocaleString() + ' turret damage dealt</div>';
+      ' kills' + (stats.crits ? '  ·  ' + stats.crits.toLocaleString() + ' crits' : '') +
+      '  ·  ' + Math.round(stats.damageDealt).toLocaleString() + ' turret damage dealt</div>';
 }
 
 document.getElementById('next').onclick = () => { AU.ui(); nextWave(); };
@@ -5456,11 +5541,15 @@ addEventListener('keydown', e => {
   }
   // ---- bench shortcuts ----
   // The bench is where a run is actually decided, and it was mouse-only: every
-  // purchase meant travelling to a card and back to NEXT WAVE. 1-5 buys, R rerolls,
+  // purchase meant travelling to a card and back to NEXT WAVE. 1-4 buys, R rerolls,
   // Enter moves on. Only live while the bench is open, so nothing here can fire
   // during a wave.
   if (overlayOpen('shop')) {
-    if (k >= '1' && k <= '9') { e.preventDefault(); buyCard(parseInt(k, 10) - 1); return; }
+    if (k >= '1' && k <= '9') {
+      const slot = parseInt(k, 10) - 1;
+      if (slot < offer.length) { e.preventDefault(); buyCard(slot); }
+      return;
+    }
     if (k === 'r') { e.preventDefault(); document.getElementById('reroll').click(); return; }
     if (k === 'enter' || k === ' ') { e.preventDefault(); document.getElementById('next').click(); return; }
   }
