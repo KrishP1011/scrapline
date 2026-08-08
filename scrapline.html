@@ -2196,7 +2196,7 @@ function reset() {
   stats = { time: 0, kills: {}, totalKills: 0, scrapEarned: 0, shots: 0, hits: 0,
             bestWaveKills: 0, waveKills: 0, peakDps: 31, damageDealt: 0, elites: 0 };
   wave = 1; waveTime = 20; spawnT = 0;
-  scrap = 0; kills = 0; shake = 0; rrCost = 4; waveBonus = 0;
+  scrap = 0; kills = 0; shake = 0; rrCost = 4; waveBonus = 0; waveScrap = 0;
   // apply the selected character on top of the baseline rig
   const C = CHARS[charIdx] || CHARS[0];
   Object.assign(p, C.base);
@@ -3465,11 +3465,7 @@ function update(dt) {
     }
     if (dist < p.r + 6) {
       drops.splice(i, 1); AU.pickup();
-      p.scrapBank += effScrapMult();
-      const gain = Math.floor(p.scrapBank);
-      p.scrapBank -= gain;
-      scrap = Math.round(scrap + gain);
-      stats.scrapEarned += gain;
+      awardScrap(1);
     }
   }
 
@@ -4455,6 +4451,32 @@ function effCrit() { return Math.min(CRIT_CAP, p.crit); }
 function effChain() { return Math.min(CHAIN_CAP, p.chain); }
 function effScrapMult() { return Math.min(3, p.scrapMult); }    // hoarding has a ceiling
 
+// ---- salvage yield: the wave's haul, not the body count ----
+// Scrap was paid per kill at a flat rate, and kills per wave grow enormously —
+// about 30 a wave early, over 400 by wave 18. That made income grow with crowd
+// size while card prices grew with the wave number, so by wave 20 a run was
+// sitting on five figures and the bench had stopped being a choice at all.
+// Now the first FULL_HAUL scrap of each wave pays in full and everything past it
+// pays progressively less, so a wave's income tracks the wave you are on. Killing
+// more still always earns more — just with diminishing returns rather than none.
+const FULL_HAUL = 35;
+let waveScrap = 0;                      // paid out so far this wave
+function salvageYield() { return waveScrap <= FULL_HAUL ? 1 : FULL_HAUL / waveScrap; }
+
+// every source of scrap goes through here, so nothing can route around the knee
+function awardScrap(units) {
+  const gross = units * effScrapMult() * salvageYield();
+  p.scrapBank += gross;
+  const gain = Math.floor(p.scrapBank);
+  p.scrapBank -= gain;
+  if (gain > 0) {
+    scrap = Math.round(scrap + gain);
+    stats.scrapEarned += gain;
+  }
+  waveScrap += gross;
+  return gain;
+}
+
 let curTune = 1;                      // set while a mount is firing
 function addBullet(a, dmgMul, spdMul, pierceAdd, boom, opt) {
   const mx = p.x + Math.cos(a) * 20, my = p.y + Math.sin(a) * 20;
@@ -5022,6 +5044,7 @@ function buildBook() {
   // systems
   document.getElementById('pgSys').innerHTML = [
     ['SCRAP', 'Dropped by everything you kill. Anything still on the floor when a wave ends is vacuumed to you, so nothing is ever lost. Spend it at the bench between waves.'],
+    ['SALVAGE YIELD', 'The first ' + FULL_HAUL + ' scrap you collect in a wave is worth full value; past that, each further pickup is worth progressively less, and the meter resets when the next wave starts. Killing more always earns more — it just stops paying double for double the crowd. Without this, wave 20 arrived with thousands of unspent scrap and the bench stopped being a decision. It also means the clear bonus, which is fixed and predictable, is a real part of your income rather than a rounding error.'],
     ['SALVAGE TOKENS', 'Earned from how far you got, not how much you hoarded. Spend them in THE YARD on permanent upgrades and new rigs.'],
     ['RISK CARDS', 'Marked in red. Real power for a real cost — less health, or more damage taken. Cheap on purpose.'],
     ['ELITES', 'From wave 4 any hostile can arrive ringed in gold: over three times the health, harder hitting, and four times the scrap.'],
@@ -5128,7 +5151,8 @@ function buildStatSheet() {
     p.regen ? ['Repair', p.regen.toFixed(1) + ' HP/s'] : null,
     ['Dash cooldown', p.dashCdMax.toFixed(1) + 's'],
     ['Pickup radius', Math.round(p.pickup) + 'px'],
-    ['Scrap rate', effScrapMult().toFixed(2) + 'x' + (p.scrapMult > effScrapMult() + 0.01 ? '  (capped)' : '')]
+    ['Scrap rate', effScrapMult().toFixed(2) + 'x' + (p.scrapMult > effScrapMult() + 0.01 ? '  (capped)' : '') +
+                   (waveScrap > FULL_HAUL ? '  · yield ' + Math.round(salvageYield() * 100) + '%' : '')]
   ]);
   const auto = grp('AUTOMATIC', [
     p.arcLvl ? ['Arc Coil', p.arcDmg + ' dmg x' + p.arcChain + ' every ' + p.arcCdMax.toFixed(1) + 's'] : null,
@@ -5291,11 +5315,7 @@ function sweepUpdate(dt) {
     d.y += Math.sin(a) * pull * dt;
     if (Math.hypot(p.x - d.x, p.y - d.y) < p.r + 10) {
       drops.splice(i, 1);
-      p.scrapBank += effScrapMult();
-      const g = Math.floor(p.scrapBank);
-      p.scrapBank -= g;
-      scrap = Math.round(scrap + g);
-      stats.scrapEarned += g;
+      awardScrap(1);
       if (i % 2 === 0) AU.pickup();
       burst(p.x, p.y, '#F0A93B', 2);
     }
@@ -5306,16 +5326,16 @@ function sweepUpdate(dt) {
 function finishWave() {
   // anything the vacuum somehow missed still counts — no scrap is ever lost
   if (drops.length) {
-    p.scrapBank += drops.length * effScrapMult();
-    const g = Math.floor(p.scrapBank);
-    p.scrapBank -= g;
-    scrap = Math.round(scrap + g);
-    stats.scrapEarned += g;
+    awardScrap(drops.length);
     drops.length = 0;
   }
   state = 'shop';
   banner = null;
-  waveBonus = Math.round(3 + wave * 1.4);    // clearing a wave pays out on its own
+  // With the haul knee in place, the clear bonus is a meaningful and, more
+  // importantly, PREDICTABLE slice of a wave's income — you can plan a purchase
+  // around it, which you never could when income was whatever the crowd happened
+  // to be. Heavy waves pay extra because they take longer and cannot be rushed.
+  waveBonus = Math.round((6 + wave * 2.6) * (isHeavyWave(wave) ? 1.5 : 1));
   scrap = Math.round(scrap + waveBonus);
   stats.scrapEarned += waveBonus;
   stats.bestWaveKills = Math.max(stats.bestWaveKills, stats.waveKills);
@@ -5338,6 +5358,7 @@ function nextWave() {
   wave++;
   waveTime = 20;
   spawnT = 0;
+  waveScrap = 0;                       // the haul knee resets with the wave
   p.x = W / 2; p.y = H / 2;
   p.inv = 1;
   AU.waveStart();

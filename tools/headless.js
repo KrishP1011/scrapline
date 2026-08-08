@@ -277,11 +277,81 @@ const driver = `
     } catch (err) { report.errors.push(tag + ': ' + (err && err.stack || err)); }
   }
   const runs = [];
-  for (let run = 0; run < 40; run++) { campaign(900, 'c' + run); if (report['c' + run]) { runs.push(report['c' + run].reachedWave); delete report['c' + run]; } }
+  for (let run = 0; run < (globalThis.SKIP_CAMPAIGN ? 0 : 40); run++) { campaign(900, 'c' + run); if (report['c' + run]) { runs.push(report['c' + run].reachedWave); delete report['c' + run]; } }
   runs.sort((a, b) => a - b);
   report.campaign = { n: runs.length, waves: runs,
                       mean: +(runs.reduce((a, b) => a + b, 0) / runs.length).toFixed(2),
                       median: runs[Math.floor(runs.length / 2)] };
+
+
+  // ---- economy probe ----
+  // An immortal shopper: kills at a plausible rate, buys everything it can afford
+  // every round, and records where scrap comes from and where it goes. The question
+  // is not "can it survive" but "does the bench ever stop being a constraint".
+  function economy(toWave, tag, opts) {
+    opts = opts || {};
+    try {
+      charIdx = opts.charIdx || 0;
+      reset();
+      p.maxHp = p.hp = 1e9;                     // survival is not what we are measuring
+      if (opts.scrapMult) p.scrapMult = opts.scrapMult;
+      const rows = [];
+      let earnedAt = 0, spentTotal = 0, boughtTotal = 0;
+      const DT2 = 1 / 60;
+      let guard = 0;
+      while (wave < toWave && guard < 4000000) {
+        guard++;
+        gt += DT2;
+        if (state === 'play') {
+          const inp = botInput();
+          stick = { id: 1, ox: 0, oy: 0, dx: inp.dx, dy: inp.dy, mag: 1 };
+          keys[' '] = false; keys['e'] = true;
+          update(DT2);
+        } else if (state === 'sweep') sweepUpdate(DT2);
+        else if (state === 'shop') {
+          const before = scrap, w = wave;
+          let bought = 0;
+          // buy anything affordable, cheapest first, until nothing is affordable
+          for (let n = 0; n < 200; n++) {
+            let best = -1, bc = 1e9;
+            offer.forEach((o, ix) => { const c = cost(o.u); if (!o.bought && (opts.strong || !o.u.curse) && c <= scrap && c < bc) { bc = c; best = ix; } });
+            if (best < 0) break;
+            const o = offer[best];
+            scrap -= bc; o.u.f();
+            if (o.u.wep === undefined) p.lvl[o.u.n] = (p.lvl[o.u.n] || 0) + 1;
+            const nx = drawCard(offer.map(x => x.u));
+            if (nx) { o.u = nx; o.bought = false; } else o.bought = true;
+            bought++;
+          }
+          spentTotal += before - scrap; boughtTotal += bought;
+          p.maxHp = 1e9; p.frailty = 1;       // stay immortal across the whole run
+          // can the build this economy paid for actually out-damage the wave?
+          // incoming HP per second vs turret dps is the only ratio that matters.
+          const k = kindStats('grunt');
+          const perSec = (spawnBatch() / Math.max(0.0001, spawnRate()));
+          const threat = Math.round(perSec * k.hp);
+          rows.push({ w: w, earned: Math.round(stats.scrapEarned - earnedAt), spent: Math.round(before - scrap),
+                      bank: Math.round(scrap), bought: bought, kills: stats.totalKills,
+                      dps: turretDps(), threat: threat, ratio: +(turretDps() / threat).toFixed(2),
+                      cheapest: Math.min.apply(null, offer.map(o => cost(o.u))) });
+          earnedAt = stats.scrapEarned;
+          p.hp = p.maxHp;
+          nextWave();
+        }
+        if (state === 'dead') break;
+      }
+      report[tag] = { reachedWave: wave, died: state === 'dead', guardHit: guard >= 4000000,
+                      rows: rows.filter(r => r.w % 2 === 0 || r.w <= 5),
+                      finalBank: Math.round(scrap), totalEarned: Math.round(stats.scrapEarned),
+                      totalSpent: Math.round(spentTotal), cardsBought: boughtTotal };
+    } catch (err) { report.errors.push(tag + ': ' + (err && err.stack || err)); }
+  }
+  // weak build (no risk cards) and strong farming build (takes everything) —
+  // the strong one is the case that produced the five-figure banks
+  economy(21, 'weak_a');
+  economy(21, 'weak_b');
+  economy(21, 'strong_a', { strong: true });
+  economy(21, 'strong_b', { strong: true });
 
   probe(20, 6, 240, 'w20_stacked');
   probe(20, 6, 240, 'w20_stacked_risk', { risk: true });
