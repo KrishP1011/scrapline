@@ -2973,7 +2973,6 @@ function update(dt) {
             AU.spit();
           }
         }
-        mv *= 1;
 
       } else if (e.boss === 0) {             // FOUNDRY PRESS
         if (e.wind > 0) {
@@ -4545,7 +4544,7 @@ const NOW = {
   'Incendiary Rounds': () => Math.round(Math.min(p.burnDps, igniteMax())) + ' dmg/s burn' + (p.burnDps > igniteMax() + 1 ? ' (capped)' : ''),
   'Shock Capacitor':  () => Math.round(effCrit() * 100) + '% crit for x2' + (p.crit > effCrit() + 0.001 ? ' (capped)' : ''),
   'Chain Solder':     () => Math.round(effChain() * 100) + '% arc, ' + Math.round(CHAIN_FRAC * 100) + '% damage',
-  'Overrun':          () => '+' + Math.round((1 + STREAK_CAP * 0.045 * p.streakLvl - 1) * 100) + '% rate at 6 kills',
+  'Overrun':          () => '+' + Math.round(STREAK_CAP * 0.045 * p.streakLvl * 100) + '% rate at 6 kills',
   'Magnetic Bracing': () => Math.round(p.slowAmt * 100) + '% slower, ' + Math.round(p.slowR) + 'px',
   'Thermal Lance':    () => p.ventBurn ? 'vent ignites · ' + p.ventR + 'px' : 'needs Slag Vent',
   'Splinter Payload': () => p.splinter + ' burst damage, 88px',
