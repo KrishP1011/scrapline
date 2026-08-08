@@ -5837,8 +5837,18 @@ const DEV = {
   meta() { return JSON.parse(JSON.stringify(META)); }
 };
 window.scrapline = DEV;
-// guarded: the game is a single file that may be run somewhere without a location
-if (typeof location !== 'undefined' && (location.hash || '').toLowerCase() === '#dev') DEV.unlockAll();
+// Guarded: the game is a single file that may be run somewhere without a location.
+// Accepts #dev or ?dev, and listens for the hash being added later, because typing
+// #dev onto an already-open page does not reload it — and a redirect that eats the
+// fragment is exactly the kind of thing that makes this look broken.
+function devRequested() {
+  if (typeof location === 'undefined') return false;
+  const h = (location.hash || '').toLowerCase().replace(/^#/, '');
+  const q = (location.search || '').toLowerCase();
+  return h === 'dev' || /(^|[?&])dev(=1|=true)?($|&)/.test(q);
+}
+if (devRequested()) DEV.unlockAll();
+addEventListener('hashchange', () => { if (devRequested()) DEV.unlockAll(); });
 
 reset();
 state = 'menu';

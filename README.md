@@ -14,7 +14,7 @@ asset files: every sprite, sound effect and music track is generated at runtime.
 | | |
 |---|---|
 | **Play** | <https://krishp1011.github.io/scrapline/> |
-| **Dev / testing build** | <https://krishp1011.github.io/scrapline/#dev> |
+| **Dev / testing build** | <https://krishp1011.github.io/scrapline/#dev> (or `?dev`) |
 
 The `#dev` link is for testing late-game content without grinding to it. It
 **skips the entire progression system** — it unlocks every rig, maxes the

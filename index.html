@@ -3,8 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <title>SCRAPLINE</title>
-<meta http-equiv="refresh" content="0; url=scrapline.html">
 <link rel="canonical" href="scrapline.html">
+<script>
+  // Carry the query string and the fragment across the redirect. A plain
+  // <meta refresh> drops them, which silently broke the #dev unlock link: the
+  // browser landed on scrapline.html with no hash at all and started a normal run.
+  location.replace('scrapline.html' + location.search + location.hash);
+</script>
+<!-- fallback for anyone with scripting disabled; loses the fragment, but at least
+     still reaches the game -->
+<meta http-equiv="refresh" content="3; url=scrapline.html">
 </head>
 <body style="background:#0A0706;color:#DCD5C6;font-family:monospace">
 <p><a href="scrapline.html" style="color:#DCD5C6">Loading SCRAPLINE&hellip; click here if it doesn't start.</a></p>
