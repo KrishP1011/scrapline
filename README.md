@@ -1,10 +1,13 @@
 # Scrapline
 
+### ▶ [PLAY IT HERE](https://krishp1011.github.io/scrapline/)
+
 A single-file HTML5 arena survivor. Salvage-yard setting: you move, your turret
 fires on its own, and you spend scrap between waves to build a run.
 
-Open `scrapline.html` in a browser. No build step, no dependencies, no assets —
-all sprites, sound and music are generated at runtime.
+Runs in any browser — nothing to install, no account, works on phones. Or clone
+the repo and open `scrapline.html` directly. No build step, no dependencies, no
+asset files: every sprite, sound effect and music track is generated at runtime.
 
 ## Controls
 
