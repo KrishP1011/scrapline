@@ -21,10 +21,14 @@ asset files: every sprite, sound effect and music track is generated at runtime.
 
 ## What's in it
 
-- **4 rigs** — Scrapper, Bulwark, Sparkhand, Magpie. Different stats and starting weapon.
-- **8 weapons** — rifle, scattergun, rail lance, flak mortar, needler, arc thrower,
-  slag thrower, grapple harpoon. Fit a second mount to carry two at once; each fires
-  on its own rate and range.
+- **6 rigs** — Scrapper, Bulwark, Sparkhand, Magpie, plus two with a *welded mount*:
+  **Ember**, whose Pilot Light barely scratches anything but sets it all on fire, and
+  **Anchor**, whose Deadlock Cannon spins up to double damage while you stand
+  perfectly still and collapses the moment you move. A signature weapon can never be
+  sold, swapped or replaced.
+- **10 weapons** — rifle, scattergun, rail lance, flak mortar, needler, arc thrower,
+  slag thrower, grapple harpoon, plus the two signature mounts. Fit a second mount to
+  carry two at once; each fires on its own rate and range.
 - **42 bench cards** — stacking upgrades, eight automatic abilities that fight for you,
   and red risk cards that trade health for power.
 - **11 enemy types** plus gold-ringed elites from wave 4.

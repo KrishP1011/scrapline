@@ -286,7 +286,9 @@
              font-size: 8px; font-weight: 700; padding: 0 3px; border-radius: 2px; }
   .foot { margin-top: 16px; padding-top: 10px; border-top: 1px solid #2C231C;
           font-size: 9.5px; letter-spacing: 1px; color: #57503F; }
-  .chars { display:flex; gap:11px; flex-wrap:wrap; justify-content:center; max-width:800px; }
+  /* Six rigs at four across left a stranded row of two. Three across is symmetric,
+     and the tiles are trimmed so both rows are close to fitting the cabinet. */
+  .chars { display:flex; gap:11px; flex-wrap:wrap; justify-content:center; max-width:584px; }
   .chr {
     width:180px; padding:13px 12px; cursor:pointer; text-align:left;
     background:linear-gradient(160deg,#241C16,#171210);
@@ -298,11 +300,11 @@
   .chr:nth-child(4){animation-delay:.15s}
   .chr:hover { border-color:#F0A93B; border-top-color:#F0A93B; transform:translateY(-3px);
                box-shadow:0 8px 20px rgba(240,169,59,.18); }
-  .cav { display:block; width:48px; height:56px; image-rendering:pixelated; margin:0 auto 8px; }
+  .cav { display:block; width:40px; height:47px; image-rendering:pixelated; margin:0 auto 6px; }
   .cn { font-family:'Oxanium',sans-serif; font-size:15px; font-weight:800; letter-spacing:1px;
         color:#DCD5C6; text-align:center; }
   .ct { font-size:8px; letter-spacing:2.2px; color:#F0A93B; text-align:center; margin:2px 0 9px; }
-  .cd { font-size:9.5px; color:#8A7A63; line-height:1.55; min-height:58px; margin-bottom:9px; }
+  .cd { font-size:9.5px; color:#8A7A63; line-height:1.5; min-height:52px; margin-bottom:7px; }
   .sb { display:flex; align-items:center; gap:6px; margin-bottom:3px; }
   .sb span { font-size:8px; letter-spacing:1px; color:#57503F; width:26px; }
   .sb i { flex:1; height:5px; background:#241C16; border-radius:2px; overflow:hidden; display:block; }
@@ -508,6 +510,9 @@
   #shop .card .d { min-height: 34px; }
   #shop .actionbar { margin-top: 2px; padding-top: 8px; }
   #shop .actionbar .row { margin-top: 0; }
+  /* the picker is six tiles now, so it needs its vertical budget back */
+  #pick .rule { margin-bottom: 10px; }
+  #pick h2 { margin-bottom: 8px; }
   .keyhint { margin-top: 8px; }
   .keyhint .key { font-size: 10px; padding: 1px 5px; }
   /* the keyboard legend is noise on a device with no keyboard */
@@ -737,7 +742,7 @@ const YARD = [
   { id: 'cache', n: 'Starting Cache',   d: 'Begin each run with +8 scrap',  max: 5, cost: l => 12 + l * 8 },
   { id: 'rights', n: 'Salvage Rights',  d: '+8% scrap from every pickup',   max: 3, cost: l => 24 + l * 18 }
 ];
-const UNLOCK_COST = { scrapper: 0, bulwark: 26, sparkhand: 42, magpie: 58 };
+const UNLOCK_COST = { scrapper: 0, bulwark: 26, sparkhand: 42, magpie: 58, ember: 78, anchor: 102 };
 
 let META = { tokens: 0, unlocked: ['scrapper'], yard: {}, bestWave: 0, runs: 0, prestige: 0, muted: false };
 
@@ -913,7 +918,24 @@ const CHARS = [
     d: 'Built for the floor, not the fight. Outruns everything and hauls noticeably more scrap per wave.',
     pal: { W: '#C9C08A', M: '#8A8560', A: '#A8C13A' },
     base: { maxHp: 56, hp: 56, dmg: 9, rate: 2.6, speed: 252, pickup: 150, scrapMult: 1.35, weapons: [4, -1] },
-    perk: 'Scrap Magnet', perkTxt: 'Needler · +35% scrap · Scrap Magnet' }
+    perk: 'Scrap Magnet', perkTxt: 'Needler · +35% scrap · Scrap Magnet' },
+
+  // ---- rigs with a welded mount ----
+  // Their signature weapon cannot be sold, swapped or replaced, so the whole run is
+  // built around one mechanic instead of around whatever the bench happened to offer.
+  { id: 'ember', n: 'Ember', tag: 'PYRO',
+    d: 'Barely scratches anything it shoots. Everything it touches burns down instead, and its fires bite harder than anyone else’s.',
+    pal: { W: '#E0A87A', M: '#A8613A', A: '#FF7A2F' },
+    base: { maxHp: 62, hp: 62, dmg: 10, rate: 2.4, speed: 216, range: 210, weapons: [8, -1] },
+    locked: true, perkTxt: 'Pilot Light · welded mount · +30% burn damage',
+    setup: () => { p.burnMul *= 1.3; } },
+
+  { id: 'anchor', n: 'Anchor', tag: 'SIEGE',
+    d: 'A gun emplacement that happens to walk. Hold still and it spins up to double damage; take one step and it drops all the way back.',
+    pal: { W: '#9AA8B4', M: '#5F6C7A', A: '#7FB8D4' },
+    base: { maxHp: 96, hp: 96, dmg: 13, rate: 2.0, speed: 168, weapons: [9, -1] },
+    locked: true, perkTxt: 'Deadlock Cannon · welded mount · spins up while planted',
+    setup: () => { p.rootRig = 1; } }
 ];
 let charIdx = 0;
 
@@ -1594,6 +1616,26 @@ const WEP_ART = {
   '....KMMK......A...',
   '....KKK...........'
   ],
+  pilot: [
+  '..............FF..',
+  '.....KKKKKKK.FFFF.',
+  '...KKMMMMMMKKFeeFF',
+  '..KMWWWWWWWWMKFeeF',
+  '..KMWWWWWWWWMKFeeF',
+  '...KKMMMMMMKKFeeFF',
+  '....KMMK.....FFFF.',
+  '....KKK.......FF..'
+  ],
+  deadlock: [
+  '..KKKK............',
+  '.KMMMMKKKKKKKKKK..',
+  'KMWWWWMMMMMMMMMMKK',
+  'KMWWWWWWWWWWWWWMAK',
+  'KMWWWWWWWWWWWWWMAK',
+  'KMWWWWMMMMMMMMMMKK',
+  '.KMMMMKKKKKKKKKK..',
+  '..KKKK............'
+  ],
   needler: [
   '....G.G.G.........',
   '....G.G.G.........',
@@ -2194,7 +2236,8 @@ function reset() {
     ventBurn: 0,                                  // Thermal Lance
     splinter: 0,                                  // Splinter Payload
     wardLvl: 0, wardCd: 0, wardCdMax: 14, wardUp: false, wardFx: 0,   // Scrap Ward
-    flameFx: 0, flameAng: 0                       // Slag Thrower muzzle cone
+    flameFx: 0, flameAng: 0,                      // Slag Thrower muzzle cone
+    lockedMount: false, rootRig: 0, root: 0       // welded signature mount (Ember, Anchor)
   };
   enemies = []; bullets = []; drops = []; parts = [];
   corpses = []; floats = []; banner = null; hitFx = 0;
@@ -2211,7 +2254,9 @@ function reset() {
   // apply the selected character on top of the baseline rig
   const C = CHARS[charIdx] || CHARS[0];
   Object.assign(p, C.base);
+  p.lockedMount = !!C.locked;          // signature mount cannot be swapped out
   if (C.perk) { POOL.find(u => u.n === C.perk).f(); p.lvl[C.perk] = 1; }
+  if (C.setup) C.setup();
   // permanent yard upgrades stack on top of the rig
   p.maxHp += yardLvl('frame') * 5;
   p.hp = p.maxHp;
@@ -2595,6 +2640,9 @@ function update(dt) {
   p.y = Math.max(p.r, Math.min(H - p.r, p.y + mvy * mvs * dt));
   p.inv = Math.max(0, p.inv - dt);
   p.moving = !!len || dashing;
+  // DEADLOCK spin-up. Any movement at all resets it to zero — no partial credit,
+  // so stepping out of a shockwave is a real, felt cost rather than a small tax.
+  if (p.rootRig) p.root = p.moving ? 0 : (p.root || 0) + dt;
   stats.time += dt;
   p.mflash = Math.max(0, p.mflash - dt);
   p.mflashes[0] = Math.max(0, p.mflashes[0] - dt);
@@ -4058,6 +4106,25 @@ function draw() {
     }
   }
 
+  // DEADLOCK — a bracing ring that closes as the gun spins up, so the state is
+  // readable from the arena rather than only from the HUD strip
+  if (p.rootRig && (p.root || 0) > 0.15) {
+    const k = Math.min(1, p.root / ROOT_FULL);
+    ctx.strokeStyle = k >= 1 ? 'rgba(127,184,212,' + (0.55 + Math.sin(gt * 6) * 0.18) + ')'
+                             : 'rgba(127,184,212,' + (0.18 + k * 0.3) + ')';
+    ctx.lineWidth = k >= 1 ? 3 : 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 30 - k * 8, 0, 7); ctx.stroke();
+    // three bracing feet driving into the deck
+    for (let i = 0; i < 3; i++) {
+      const a2 = i / 3 * Math.PI * 2 + gt * (k >= 1 ? 0 : 0.6);
+      const r0 = 30 - k * 8, r1 = r0 + 7 * k;
+      ctx.beginPath();
+      ctx.moveTo(p.x + Math.cos(a2) * r0, p.y + Math.sin(a2) * r0);
+      ctx.lineTo(p.x + Math.cos(a2) * r1, p.y + Math.sin(a2) * r1);
+      ctx.stroke();
+    }
+  }
+
   // MAGNETIC BRACING — the drag field, drawn under everything you own
   if (p.slowLvl > 0) {
     const sg = ctx.createRadialGradient(p.x, p.y, p.slowR * 0.5, p.x, p.y, p.slowR);
@@ -4500,8 +4567,18 @@ function drawHUD() {
     ctx.fillStyle = p.wardUp ? '#7FB8D4' : '#3E6F8A';
     ctx.fillRect(x + 8, y + 17, 68 * (p.wardUp ? 1 : 1 - p.wardCd / p.wardCdMax), 5);
   }
+  if (p.rootRig) {
+    const x = p.wardLvl > 0 ? 314 : 222, k = Math.min(1, (p.root || 0) / ROOT_FULL);
+    ctx.fillStyle = 'rgba(10,7,6,0.78)'; ctx.fillRect(x, H - 42, 108, 28);
+    ctx.fillStyle = k >= 1 ? '#7FB8D4' : k > 0 ? '#8A7A63' : '#3A2E24';
+    ctx.font = 'bold 9px Courier New';
+    ctx.fillText(k >= 1 ? 'DEADLOCK x2' : 'SPIN-UP x' + rootMul().toFixed(2), x + 8, H - 29);
+    ctx.fillStyle = '#2A2018'; ctx.fillRect(x + 8, H - 25, 92, 5);
+    ctx.fillStyle = k >= 1 ? '#7FB8D4' : '#3E6F8A';
+    ctx.fillRect(x + 8, H - 25, 92 * k, 5);
+  }
   if (p.streakLvl > 0 && p.streak > 0) {
-    const x = p.wardLvl > 0 ? 314 : 222;
+    const x = (p.wardLvl > 0 ? 314 : 222) + (p.rootRig ? 116 : 0);
     ctx.fillStyle = 'rgba(10,7,6,0.78)'; ctx.fillRect(x, H - 42, 96, 28);
     ctx.fillStyle = '#F0A93B'; ctx.font = 'bold 9px Courier New';
     ctx.fillText('OVERRUN x' + Math.min(STREAK_CAP, p.streak), x + 8, H - 29);
@@ -4651,8 +4728,50 @@ const WEAPONS = [
 
   { id: 'harpoon', n: 'Grapple Harpoon', rateMul: 0.34, rangeMul: 1.3, cost: 26,
     d: 'WEAPON — a heavy hooked shot that skewers a line and drags everything it hits back toward you.',
-    fire(a) { addBullet(a, 2.4, 1.3, 2, false, { pull: true, heavyShot: true }); } }
+    fire(a) { addBullet(a, 2.4, 1.3, 2, false, { pull: true, heavyShot: true }); } },
+
+  // ---- signature mounts ----
+  // Welded to their rig and never offered at the bench, so these can carry a
+  // mechanic of their own rather than having to be balanced as a free-agent pickup.
+  { id: 'pilot', n: 'Pilot Light', rateMul: 1.9, rangeMul: 0.5, cost: 0, sig: true,
+    d: 'SIGNATURE — a permanent ignition flame. Almost no impact damage; its burn is the damage.',
+    fire(a) {
+      p.flameFx = 0.12; p.flameAng = a;
+      const reach = Math.max(155, slotRange(0));
+      const half = 0.5;
+      for (const e of enemies) {
+        const d = Math.hypot(e.x - p.x, e.y - p.y);
+        if (d > reach + e.r) continue;
+        let da = Math.atan2(e.y - p.y, e.x - p.x) - a;
+        da = Math.abs(Math.atan2(Math.sin(da), Math.cos(da)));
+        if (da > half) continue;
+        stats.damageDealt += dealDamage(e, effDmg() * 0.12 * curTune);
+        e.flash = .07;
+        stats.hits++;
+        // its own ignition, always, so Ember is a burn rig from wave one
+        ignite(e, Math.max(p.burnDps, effDmg() * 0.30 * curTune), 2.6);
+      }
+      for (let k = 0; k < 6; k++) {
+        const ang = a + (Math.random() - .5) * half * 2, sp = 200 + Math.random() * 200;
+        parts.push({ x: p.x + Math.cos(a) * 18, y: p.y + Math.sin(a) * 18,
+                     vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+                     life: .32, max: .32, col: k % 2 ? '#FF7A2F' : '#F6E2B4', sz: 3 + Math.random() * 3 });
+      }
+    } },
+
+  { id: 'deadlock', n: 'Deadlock Cannon', rateMul: 0.5, rangeMul: 1.25, cost: 0, sig: true,
+    d: 'SIGNATURE — a siege gun that spins up while you hold still and drops back the moment you move.',
+    fire(a) {
+      // the whole rig is built around this: standing still is the damage button,
+      // and standing still is also how you die. Capped at double, reached in 2.5s.
+      addBullet(a, 1.5 * rootMul(), 1.4, 2, false, { heavyShot: true });
+    } }
 ];
+
+// Deadlock's spin-up. Rises while planted, and collapses the instant you move —
+// no partial credit, so the decision to step is always a real cost.
+const ROOT_FULL = 2.5;
+function rootMul() { return 1 + Math.min(1, (p.root || 0) / ROOT_FULL); }
 function wep(slot) { return WEAPONS[p.weapons[slot === undefined ? 0 : slot]] || WEAPONS[0]; }
 function hasSlot(i) { return i < p.slots && p.weapons[i] >= 0; }
 // tuning sharpens whatever is bolted on: more damage, and a little more rate
@@ -4833,11 +4952,16 @@ function splitTag(d) {
 // card says which, so a swap is never a surprise
 function equipWeapon(i) {
   if (p.weapons[0] === i || p.weapons[1] === i) return;
-  if (p.slots > 1 && p.weapons[1] < 0) p.weapons[1] = i;
-  else if (p.slots > 1) p.weapons[1] = i;
+  // a welded mount owns slot 0 for the whole run — everything bought goes beside it
+  if (p.lockedMount) { if (p.slots > 1) p.weapons[1] = i; return; }
+  if (p.slots > 1) p.weapons[1] = i;
   else p.weapons[0] = i;
 }
 function weaponSlotHint(i) {
+  if (p.lockedMount) {
+    return p.slots < 2 ? 'needs TWIN MOUNT — ' + wep(0).n + ' is welded on'
+                       : (p.weapons[1] < 0 ? 'goes in your second mount' : 'replaces ' + wep(1).n);
+  }
   if (p.slots < 2) return 'replaces ' + wep(0).n;
   if (p.weapons[1] < 0) return 'goes in your empty mount';
   return 'replaces ' + wep(1).n;
@@ -4854,6 +4978,9 @@ function cost(u) {
 function offerPool() {
   return POOL.filter(u =>
     (u.wep === undefined || (u.wep !== p.weapons[0] && u.wep !== p.weapons[1])) &&
+    // a welded rig has nowhere to put a second gun until it buys Twin Mount, so
+    // the bench does not waste a slot dangling one in front of it
+    !(u.wep !== undefined && p.lockedMount && p.slots < 2) &&
     !(u.maxed && u.maxed()));
 }
 
@@ -5142,6 +5269,8 @@ function buildBook() {
     ['FALLING SCRAP', 'The Derrick drops scrap out of the dark. A growing shadow marks where it lands — do not be standing in it.'],
     ['THE MAGNET', 'The Derrick drags you toward it constantly. You can still walk out, but everything takes longer, and its wrecking ball is swinging.'],
     ['TAR', 'The Widow marks a patch of floor with a blinking violet ring before it floods. Step off it before the ring closes. Once it lands the tar slows you badly and stings while you stand in it.'],
+    ['WELDED MOUNTS', 'Ember and Anchor carry a signature weapon that is bolted on for the whole run: it can never be sold, swapped or replaced, and the bench will not offer you a gun you have nowhere to put. Buy TWIN MOUNT and the second mount opens up as normal — the signature one simply keeps its slot.'],
+    ['DEADLOCK', 'Anchor\'s cannon spins up while you stand completely still, reaching double damage after two and a half seconds, and drops straight back to nothing the moment you move. There is no partial credit: stepping aside costs you the whole spin-up, which is the trade the whole rig is built on.'],
     ['MOUNTS', 'You start with one weapon. Buy TWIN MOUNT at the bench to bolt on a second — both fire at the same time, each at its own rate and its own range. Buying a weapon fills the empty mount, or replaces the second one; the card tells you which.'],
     ['MACHINING', 'Tunes every weapon you currently carry: +16% damage and +7% fire rate each time. With two mounts fitted, one card sharpens both.'],
     ['MAXED GEAR', 'Once an upgrade hits its ceiling it stops appearing at the bench, so the offer never wastes a slot. The same mechanism hides cards you cannot use yet: Thermal Lance only appears once you own a Slag Vent, and Splinter Payload only once you own something that sets fires.'],
