@@ -41,7 +41,15 @@
 
   .overlay {
     position: absolute; inset: 0; display: none;
-    flex-direction: column; align-items: center; justify-content: center;
+    flex-direction: column; align-items: center;
+    /* Safe centring. Plain `justify-content:center` centres the group but clips the
+       TOP of anything taller than the box, and no amount of scrolling can reach it —
+       which is exactly how the run summary lost its title and its RUN IT BACK button.
+       Auto margins on the first and last child centre the group when there is room
+       and collapse to zero when there is not, so tall content simply scrolls. */
+    justify-content: flex-start;
+    overflow-y: auto; overflow-x: hidden;
+    overscroll-behavior: contain;
     background:
       repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 2px, transparent 2px 4px),
       radial-gradient(ellipse at 50% 40%, rgba(240,169,59,.07), transparent 65%),
@@ -49,6 +57,24 @@
     border-radius: 4px; padding: 24px;
   }
   .overlay.on { display: flex; }
+  /* Two zero-height flex spacers do the centring. Auto margins on the first/last
+     real child would work too, but any absolutely-positioned extra (the scroll cue)
+     silently steals :last-child and breaks it; pseudo-elements cannot be displaced. */
+  .overlay::before, .overlay::after { content: ''; flex: 0 0 0; margin: auto; }
+  /* align-items:center sizes every child to fit-content, which lets a long heading or
+     a row of cards grow wider than the overlay and get clipped off the right edge.
+     Clamping the children is what actually keeps the menus inside the screen. */
+  .overlay > * { max-width: 100%; }
+  .overlay::-webkit-scrollbar { width: 9px; }
+  .overlay::-webkit-scrollbar-thumb { background: #3A2E24; border-radius: 4px; }
+  .overlay::-webkit-scrollbar-thumb:hover { background: #57503F; }
+  /* a nudge that there is more below, so nobody assumes the screen is the whole screen */
+  .scrollcue {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 46px; pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(10,7,6,.92));
+    opacity: 0; transition: opacity .2s; z-index: 4;
+  }
+  .overlay.more .scrollcue { opacity: 1; }
   .eyebrow {
     color: #8A7A63; font-size: 10px; letter-spacing: 5px; margin-bottom: 8px;
   }
@@ -65,7 +91,9 @@
     width: 190px; height: 2px; margin-bottom: 18px;
     background: linear-gradient(90deg, transparent, #B4503C, transparent);
   }
-  .cards { display: flex; gap: 11px; flex-wrap: wrap; justify-content: center; max-width: 790px; }
+  /* 790px fitted four cards, so an offer of five wrapped to a lopsided 4 + 1 with a
+     lone card stranded on its own row. Three across gives a balanced 3 + 2. */
+  .cards { display: flex; gap: 11px; flex-wrap: wrap; justify-content: center; max-width: 584px; }
   .card {
     width: 180px; padding: 14px 13px; cursor: pointer; text-align: left;
     background: linear-gradient(160deg, #241C16, #171210);
@@ -80,7 +108,21 @@
     box-shadow: 0 6px 18px rgba(240,169,59,.16);
   }
   .card.bought { opacity: .3; cursor: default; border-left-color: #A8C13A; }
-  .card.broke { opacity: .4; cursor: not-allowed; }
+  /* "can't afford yet" was rendered at 40% opacity, which made the card unreadable —
+     you could not tell what you were saving toward. It stays legible; only the price
+     goes red, and the shortfall is spelled out. */
+  .card.broke { opacity: .72; cursor: not-allowed; border-left-color: #7E3427; }
+  .card.broke .c { color: #E06A54; }
+  .card .short { font-size: 9px; color: #7E3427; letter-spacing: .5px; margin-top: 3px; }
+  /* number badge showing the key that buys this card */
+  .card { position: relative; }
+  .card .num {
+    position: absolute; top: -8px; right: -8px; width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    background: #241C16; border: 1px solid #57503F; border-radius: 3px;
+    font-size: 10px; font-weight: 700; color: #8A7A63; z-index: 2;
+  }
+  .card:hover:not(.bought):not(.broke) .num { border-color: #F0A93B; color: #F0A93B; }
   .card .hd { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
   .card .ico {
     width: 30px; height: 30px; image-rendering: pixelated; flex-shrink: 0;
@@ -113,6 +155,12 @@
   .dpsline {
     font-size:10.5px; letter-spacing:1.5px; color:#8A7A63; margin:-12px 0 16px;
   }
+  .hpchip {
+    display:inline-block; margin-right:10px; padding:2px 8px; border-radius:3px;
+    background:#241C16; border:1px solid #3A2E24; color:#A8C13A;
+    font-weight:700; letter-spacing:1px;
+  }
+  .hpchip.low { color:#E06A54; border-color:#7E3427; }
   .card .d { font-size: 10.5px; color: #8A7A63; line-height: 1.5; min-height: 32px; }
   .card .c {
     font-size: 11.5px; color: #F0A93B; margin-top: 10px; font-weight: 700; letter-spacing: 1px;
@@ -293,20 +341,35 @@
     #wrap { filter: none; }
     canvas { border-width: 2px; border-radius: 3px; }
     #wrap::before, #wrap::after { display: none; }
-    .overlay { padding: 10px; overflow-y: auto; justify-content: flex-start; }
+    /* On a phone the cabinet is only ~280px tall, so an overlay pinned to it was a
+       280px porthole onto 600px of menu — the buttons were off the bottom and the
+       cards ran off the side. Menus break out of the cabinet and take the screen. */
+    .overlay {
+      position: fixed; inset: 0; padding: 14px 10px calc(14px + env(safe-area-inset-bottom));
+      border-radius: 0; z-index: 20;
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 2px, transparent 2px 4px),
+        radial-gradient(ellipse at 50% 30%, rgba(240,169,59,.07), transparent 65%),
+        rgba(10,7,6,.975);
+    }
+    /* comfortable thumb targets */
+    button { min-height: 44px; }
     .eyebrow { font-size: 8px; letter-spacing: 2px; margin-bottom: 3px; margin-top: 6px; }
-    h1 { font-size: 30px; letter-spacing: 4px; }
-    h2 { font-size: 17px; margin-bottom: 8px; }
+    h1 { font-size: 30px; letter-spacing: 4px; text-align: center; }
+    h2 { font-size: 16px; margin-bottom: 8px; text-align: center; line-height: 1.35; }
+    .dpsline { margin: -6px 0 12px; text-align: center; line-height: 1.9; }
     .rule { margin-bottom: 10px; }
     .stats { font-size: 10px; line-height: 1.7; margin-bottom: 12px; }
     .row { flex-wrap: wrap; justify-content: center; gap: 7px; margin-top: 12px; }
     button { padding: 10px 15px; font-size: 11px; letter-spacing: 1px; }
-    .cards { gap: 7px; }
-    .card { width: 46%; min-width: 140px; padding: 9px 8px; }
+    .cards { gap: 7px; max-width: 100%; }
+    /* min-width:140 on a 46% card overflowed the row on a narrow phone; a grid
+       cannot overflow the way a flex row with a min-width can */
+    .card { flex: 1 1 150px; width: auto; min-width: 0; padding: 9px 8px; }
     .card .d { min-height: 0; font-size: 9.5px; }
     .card .ico { width: 24px; height: 24px; }
-    .chars { gap: 7px; }
-    .chr { width: 46%; min-width: 140px; padding: 9px 8px; }
+    .chars { gap: 7px; max-width: 100%; }
+    .chr { flex: 1 1 150px; width: auto; min-width: 0; padding: 9px 8px; }
     .cd { min-height: 0; font-size: 9px; }
     .cav { width: 34px; height: 40px; }
     .yardcols { gap: 8px; }
@@ -410,6 +473,40 @@
           color:#8A7A63; padding:2px 0; }
   .srow b { color:#DCD5C6; font-weight:700; }
   .hint { color: #57503F; font-size: 10.5px; margin-top: 16px; letter-spacing: 1px; }
+  /* The primary action stays on screen even when the summary above it is longer
+     than the cabinet, so "play again" is never something you have to go looking for. */
+  .actionbar {
+    position: sticky; bottom: -1px; z-index: 5;
+    display: flex; flex-direction: column; align-items: center;
+    width: 100%; padding: 10px 0 4px; margin-top: 6px;
+    /* fully opaque, carrying the same scanline texture as the overlay, so nothing
+       scrolling underneath reads through the secondary buttons (which are themselves
+       transparent). The fade is a separate strip above the bar rather than part of it. */
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 2px, transparent 2px 4px), #0A0706;
+  }
+  .actionbar::before {
+    content: ''; position: absolute; left: 0; right: 0; top: -30px; height: 30px;
+    background: linear-gradient(180deg, rgba(10,7,6,0), #0A0706);
+    pointer-events: none;
+  }
+  .actionbar .row { margin-top: 10px; }
+  .actionbar > button:first-child { margin-top: 0; }
+  /* The bench is the one screen that should never need scrolling on a desktop
+     cabinet — the whole offer is the decision. These trims buy back the ~55px that
+     pushed the second card row under the action bar. */
+  #shop h2 { margin-bottom: 8px; }
+  #shop .rule { margin-bottom: 10px; }
+  #shop .bank { margin-bottom: 10px; }
+  #shop .dpsline { margin: -6px 0 10px; }
+  #shop .cards { gap: 9px; }
+  #shop .card { padding: 11px 12px; }
+  #shop .card .d { min-height: 26px; }
+  #shop .actionbar { margin-top: 2px; padding-top: 8px; }
+  #shop .actionbar .row { margin-top: 0; }
+  .keyhint { margin-top: 8px; }
+  .keyhint .key { font-size: 10px; padding: 1px 5px; }
+  /* the keyboard legend is noise on a device with no keyboard */
+  body.touch .keyhint { display: none; }
 </style>
 </head>
 <body>
@@ -423,9 +520,16 @@
     <div class="bank" id="bank">0 scrap</div>
     <div class="dpsline" id="dpsNow"></div>
     <div class="cards" id="cards"></div>
-    <div class="row">
-      <button id="reroll">REROLL (<span id="rrCost">4</span>)</button>
-      <button class="go" id="next">NEXT WAVE</button>
+    <div class="actionbar">
+      <div class="row">
+        <button id="reroll">REROLL (<span id="rrCost">4</span>)</button>
+        <button class="go" id="next">NEXT WAVE</button>
+      </div>
+      <div class="hint keyhint">
+        <span class="key">1&ndash;5</span> buy &nbsp;·&nbsp;
+        <span class="key">R</span> reroll &nbsp;·&nbsp;
+        <span class="key">ENTER</span> next wave
+      </div>
     </div>
   </div>
 
@@ -434,10 +538,12 @@
     <h1>SCRAPPED</h1>
     <div class="rule"></div>
     <div class="stats" id="deadStats" style="width:100%; max-width:520px;"></div>
-    <button class="go big" id="restart">RUN IT BACK</button>
-    <div class="row sub">
-      <button id="yardBtn2">THE YARD</button>
-      <button id="manual2">MANUAL</button>
+    <div class="actionbar">
+      <button class="go big" id="restart">RUN IT BACK</button>
+      <div class="row sub">
+        <button id="yardBtn2">THE YARD</button>
+        <button id="manual2">MANUAL</button>
+      </div>
     </div>
   </div>
 
@@ -456,6 +562,7 @@
       <button id="abandonBtn">ABANDON RUN</button>
     </div>
     <div class="hint">ESC OR P TO RESUME</div>
+    <div class="scrollcue"></div>
   </div>
 
   <div class="overlay" id="yard">
@@ -469,6 +576,7 @@
     </div>
     <div class="pbox" id="yardPrestige"></div>
     <button id="yardBack" style="margin-top:16px">BACK</button>
+    <div class="scrollcue"></div>
   </div>
 
   <div class="overlay" id="pick">
@@ -477,6 +585,7 @@
     <div class="rule"></div>
     <div class="chars" id="charList"></div>
     <button id="pickBack" style="margin-top:18px">BACK</button>
+    <div class="scrollcue"></div>
   </div>
 
   <div class="overlay" id="book">
@@ -4665,7 +4774,12 @@ function renderShop() {
   document.getElementById('shopTitle').textContent = 'Salvage Bench — after wave ' + wave;
   document.getElementById('bank').textContent = scrap + ' scrap  (+' + waveBonus + ' clear bonus)';
   const owned = Object.values(p.lvl).reduce((a, b) => a + b, 0);
-  document.getElementById('dpsNow').textContent =
+  // health belongs on the bench screen: choosing between a damage card and a heal
+  // is the main decision here, and it used to be made blind
+  const hpFrac = Math.max(0, p.hp / p.maxHp);
+  document.getElementById('dpsNow').innerHTML =
+    '<span class="hpchip' + (hpFrac <= 0.4 ? ' low' : '') + '">' +
+      Math.ceil(Math.max(0, p.hp)) + ' / ' + Math.round(p.maxHp) + ' HP</span>' +
     'turret ' + turretDps() + ' dps  ·  ' + (turretDps() / 31).toFixed(1) + 'x starting power  ·  ' + owned + ' upgrades stacked';
   document.getElementById('rrCost').textContent = rrCost;
   const box = document.getElementById('cards');
@@ -4679,7 +4793,9 @@ function renderShop() {
     const lv = p.lvl[o.u.n] || 0;
     const nowTxt = NOW[o.u.n] ? NOW[o.u.n]() : '';
     const st = splitTag(o.u.d);
+    const short = c - scrap;
     el.innerHTML =
+      (o.bought ? '' : '<div class="num">' + (i + 1) + '</div>') +
       '<div class="hd"><img class="ico" src="' + (ICON_URL[o.u.n] || '') + '" alt="">' +
         '<div class="n">' + o.u.n +
         (st.tag ? '<span class="tag t' + st.tag + '">' + st.tag + '</span>' : '') +
@@ -4687,32 +4803,53 @@ function renderShop() {
       '<div class="d">' + st.text + '</div>' +
       (o.u.wep !== undefined ? '<div class="stk">' + weaponSlotHint(o.u.wep) + '</div>' :
         (lv ? '<div class="stk">now ' + nowTxt + '</div>' : '')) +
-      '<div class="c">' + (o.bought ? 'OWNED' : c + ' SCRAP') + '</div>';
-    el.onclick = () => {
-      if (o.bought || scrap < c) return;
-      scrap -= c;
-      o.u.f();
-      if (o.u.wep === undefined) p.lvl[o.u.n] = (p.lvl[o.u.n] || 0) + 1;
-      // restock the slot so the bench always shows something you can act on
-      const next = drawCard(offer.map(x => x.u));
-      if (next) { o.u = next; o.bought = false; o.fresh = 0.6; }
-      else o.bought = true;                   // nothing left to offer
-      // a purchase can also kill a card sitting in ANOTHER slot — buying Short Fuse
-      // drops your cooldowns to their floor, which maxes out Coolant Line elsewhere.
-      // Sweep the whole offer so nothing dead is left on the bench.
-      for (const q of offer) {
-        if (q === o || q.bought) continue;
-        const dead = (q.u.maxed && q.u.maxed()) ||
-                     (q.u.wep !== undefined && (q.u.wep === p.weapons[0] || q.u.wep === p.weapons[1]));
-        if (!dead) continue;
-        const sub = drawCard(offer.map(x => x.u));
-        if (sub) { q.u = sub; q.fresh = 0.6; }
-        else q.bought = true;
-      }
-      AU.buy();
-      renderShop();
-    };
+      '<div class="c">' + (o.bought ? 'OWNED' : c + ' SCRAP') + '</div>' +
+      // say how far short you are rather than just greying the card out
+      (!o.bought && short > 0 ? '<div class="short">' + short + ' more scrap needed</div>' : '');
+    el.onclick = () => buyCard(i);
     box.appendChild(el);
+  });
+  updateScrollCue('shop');
+}
+
+// buying a card, reachable from a click or from the number keys
+function buyCard(i) {
+  const o = offer[i];
+  if (!o) return false;
+  const c = cost(o.u);
+  if (o.bought || scrap < c) { AU.ui(); return false; }
+  scrap -= c;
+  o.u.f();
+  if (o.u.wep === undefined) p.lvl[o.u.n] = (p.lvl[o.u.n] || 0) + 1;
+  // restock the slot so the bench always shows something you can act on
+  const next = drawCard(offer.map(x => x.u));
+  if (next) { o.u = next; o.bought = false; o.fresh = 0.6; }
+  else o.bought = true;                   // nothing left to offer
+  // a purchase can also kill a card sitting in ANOTHER slot — buying Short Fuse
+  // drops your cooldowns to their floor, which maxes out Coolant Line elsewhere.
+  // Sweep the whole offer so nothing dead is left on the bench.
+  for (const q of offer) {
+    if (q === o || q.bought) continue;
+    const dead = (q.u.maxed && q.u.maxed()) ||
+                 (q.u.wep !== undefined && (q.u.wep === p.weapons[0] || q.u.wep === p.weapons[1]));
+    if (!dead) continue;
+    const sub = drawCard(offer.map(x => x.u));
+    if (sub) { q.u = sub; q.fresh = 0.6; }
+    else q.bought = true;
+  }
+  AU.buy();
+  renderShop();
+  return true;
+}
+
+// show the fade at the bottom only when there is genuinely more to scroll to
+function updateScrollCue(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  requestAnimationFrame(() => {
+    const more = el.scrollHeight - el.clientHeight > 8 &&
+                 el.scrollTop + el.clientHeight < el.scrollHeight - 8;
+    el.classList.toggle('more', more);
   });
 }
 
@@ -4931,6 +5068,9 @@ function hideOverlays() {
   }
 }
 function showOverlay(id) {
+  // every overlay scrolls now, so each one gets its "there is more below" fade
+  // recalculated whenever it opens and whenever it is scrolled
+  setTimeout(() => updateScrollCue(id), 0);
   hideOverlays();
   const el = document.getElementById(id);
   if (el) el.classList.add('on');
@@ -5287,9 +5427,27 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (e.key === 'Escape') {
     if (overlayOpen('book')) { showOverlay(overlayReturn); return; }
+    if (overlayOpen('yard')) { AU.ui(); showOverlay(overlayReturn); return; }
+    if (overlayOpen('pick')) { AU.ui(); showOverlay(overlayReturn); return; }
     if (state === 'paused') { resumeGame(); return; }
     pauseGame();
     return;
+  }
+  // ---- bench shortcuts ----
+  // The bench is where a run is actually decided, and it was mouse-only: every
+  // purchase meant travelling to a card and back to NEXT WAVE. 1-5 buys, R rerolls,
+  // Enter moves on. Only live while the bench is open, so nothing here can fire
+  // during a wave.
+  if (overlayOpen('shop')) {
+    if (k >= '1' && k <= '9') { e.preventDefault(); buyCard(parseInt(k, 10) - 1); return; }
+    if (k === 'r') { e.preventDefault(); document.getElementById('reroll').click(); return; }
+    if (k === 'enter' || k === ' ') { e.preventDefault(); document.getElementById('next').click(); return; }
+  }
+  if (overlayOpen('title') && (k === 'enter' || k === ' ')) {
+    e.preventDefault(); document.getElementById('start').click(); return;
+  }
+  if (overlayOpen('dead') && (k === 'enter' || k === ' ')) {
+    e.preventDefault(); document.getElementById('restart').click(); return;
   }
   if (k === 'p') { state === 'paused' ? resumeGame() : pauseGame(); return; }
   if (k === 'm') toggleMute();
@@ -5339,7 +5497,16 @@ for (const id of ['muteBtn', 'muteBtn2']) {
 if (IS_TOUCH) {
   const th = document.getElementById('touchHint');
   if (th) th.style.display = 'block';
+  document.body.classList.add('touch');     // hides the keyboard-only legends
 }
+// keep every overlay's scroll cue honest as the user scrolls or the window resizes
+for (const id of OVERLAYS) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('scroll', () => updateScrollCue(id), { passive: true });
+}
+addEventListener('resize', () => {
+  for (const id of OVERLAYS) if (overlayOpen(id)) updateScrollCue(id);
+});
 function refreshRankLine() {
   const rl = document.getElementById('rankLine');
   if (!rl) return;
