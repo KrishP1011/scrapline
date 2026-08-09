@@ -892,14 +892,15 @@ const MINIS = [
     r: 32, hpMul: 1.3, spd: 52, dmg: 10,
     d: 'Slow and swollen. Walks a steady drip of husks at you and coughs an acid ring when you crowd it.' }
 ];
-// Minis start at 15, not 5. Measured: a must-kill, knockback-immune target at wave 5
-// killed the two fragile rigs on 18 of 24 runs each and dropped every rig except
-// Scrapper by three to four waves, because a wave you cannot outlast is a completely
-// different problem from a wave you can kite for twenty seconds. Waves 1-9 are left
-// as the tutorial they always were; from wave 10 the heavy cadence runs as designed,
-// alternating boss and mini every fifth wave.
-function miniFor(w) { return MINIS[Math.max(0, Math.floor((w - 15) / 10)) % MINIS.length]; }
-function isMiniWave(w) { return w >= 15 && w % 10 === 5; }
+// A heavy every fifth wave: mini on 5, 15, 25..., main boss on 10, 20, 30...
+// The wave 5 mini was briefly moved to 15 because it was killing the fragile rigs,
+// but that turned out to be two other bugs wearing a trenchcoat — boss damage scaled
+// at 7.5% of your own max HP, and Ember's flame reached 195px while a Foreman engages
+// at 190 and slams to 118, so it could not attack without standing in the hit. With
+// those fixed the wave 5 mini costs about a wave of average survival and gives the
+// tightest spread across rigs yet measured, so it stays where it was designed to be.
+function miniFor(w) { return MINIS[Math.max(0, Math.floor((w - 5) / 10)) % MINIS.length]; }
+function isMiniWave(w) { return w >= 5 && w % 10 === 5; }
 // a "heavy" wave is any wave built around a single armoured target
 function isHeavyWave(w) { return isBossWave(w) || isMiniWave(w); }
 // bosses and mini-bosses share armour, knockback immunity and the HUD bar
@@ -2563,7 +2564,7 @@ function spawnMini() {
   // it. Measured with a kiting bot, the original numbers here turned wave 5 into a
   // wall that ended a quarter of all runs, so the first one is deliberately a
   // fraction of the rest: it exists to teach the shape, not to end the run.
-  const green = wave < 10 ? 0.40 : wave < 20 ? 0.80 : 1;
+  const green = wave < 10 ? 0.32 : wave < 20 ? 0.78 : 1;
   const hp = Math.round((120 + wave * 56) * b.hpMul * green);
   enemies.push({
     t: 'mini', mini: idx, hp: hp, maxHp: hp, spd: b.spd,
@@ -4755,7 +4756,10 @@ const WEAPONS = [
     d: 'SIGNATURE — a permanent ignition flame. Almost no impact damage; its burn is the damage.',
     fire(a) {
       p.flameFx = 0.12; p.flameAng = a;
-      const reach = Math.max(195, slotRange(0));   // outside a Foreman slam, not a Press one
+      // 240 so Ember can hold outside a Foreman's 190px engage and its 118px slam.
+      // At 195 it had to stand inside the attack to deal any damage at all, which is
+      // why it was the one rig that could not handle an early mini-boss.
+      const reach = Math.max(240, slotRange(0));
       const half = 0.5;
       for (const e of enemies) {
         const d = Math.hypot(e.x - p.x, e.y - p.y);
@@ -5241,7 +5245,7 @@ function buildBook() {
   }).join('');
   const miniRows = MINIS.map((b, i) => {
     const at = [];
-    for (let w = 15; w <= MINIS.length * 10 + 15; w += 10) if (miniFor(w).id === b.id) at.push('wave ' + w);
+    for (let w = 5; w <= MINIS.length * 10 + 5; w += 10) if (miniFor(w).id === b.id) at.push('wave ' + w);
     return `<div class="entry">
        <img class="eico big" src="${SPR.mini[i][0].toDataURL ? SPR.mini[i][0].toDataURL() : ''}" alt="">
        <div class="etxt"><div class="en">${b.n} <span class="tag tAUTO">MINI</span></div>
@@ -5252,8 +5256,8 @@ function buildBook() {
   document.getElementById('pgBoss').innerHTML = bossRows + miniRows +
     `<div class="entry"><div class="etxt">
        <div class="en">FIGHTING THEM</div>
-       <div class="ed">Your first nine waves are yours alone. From wave 10 something heavy arrives every fifth wave,
-       alternating: a <b>main boss</b> on 10, 20, 30 and a <b>mini-boss</b> on 15, 25, 35. Neither has a clock — the wave ends when it dies — but the yard is no longer
+       <div class="ed">Something heavy arrives every fifth wave, alternating: a <b>mini-boss</b> on 5, 15, 25 and so on,
+       a <b>main boss</b> on 10, 20, 30. Neither has a clock — the wave ends when it dies — but the yard is no longer
        swept for them. A thin trickle of hostiles keeps arriving throughout, so you can never simply stand still and
        empty everything into the big one.<br><br>
        A main boss has three phases marked on its health bar. Crossing one triggers a roar: it cannot be hurt during it,

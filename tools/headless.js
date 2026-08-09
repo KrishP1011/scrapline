@@ -312,7 +312,7 @@ const driver = `
     report.rigs = {};
     for (let ci = 0; ci < CHARS.length; ci++) {
       const rr = [];
-      for (let run = 0; run < 24; run++) {
+      for (let run = 0; run < 40; run++) {
         campaign(900, 'r', { charIdx: ci });
         if (report.r) { rr.push({ w: report.r.reachedWave, h: report.r.deathHeavy,
                                   s: report.r.deathSecs, f: report.r.deathFoes, d: report.r.deathDps }); delete report.r; }
