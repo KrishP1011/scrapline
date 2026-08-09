@@ -70,5 +70,18 @@ for (const [name, cfg] of Object.entries(TARGETS)) {
   if (problems.length) { failed = true; console.log('FAIL  ' + name + '  ' + problems.join('; ')); }
   else console.log('ok    ' + r.dir + '/index.html  (' + kb + ' KB)  ' + cfg.note);
 }
-console.log(failed ? '\nbuild FAILED' : '\nAll builds clean. Zip the folder contents (not the folder) to submit.');
+// zip each portal build with index.html at the archive root, which is the layout
+// both portals require — a nested folder is the most common rejection
+if (!failed) {
+  const { execSync } = require('child_process');
+  for (const name of ['crazygames', 'poki']) {
+    const zip = path.join(root, 'dist', 'scrapline-' + name + '.zip');
+    try {
+      fs.existsSync(zip) && fs.unlinkSync(zip);
+      execSync('zip -q -r ' + JSON.stringify(zip) + " . -x '.*'", { cwd: path.join(root, 'dist', name) });
+      console.log('zip   dist/scrapline-' + name + '.zip  (' + (fs.statSync(zip).size / 1024).toFixed(0) + ' KB)');
+    } catch (e) { console.log('zip   skipped for ' + name + ' (' + e.message + ')'); }
+  }
+}
+console.log(failed ? '\nbuild FAILED' : '\nAll builds clean.');
 process.exit(failed ? 1 : 0);
