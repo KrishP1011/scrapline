@@ -1,7 +1,9 @@
 # Publishing Scrapline
 
-Everything here is built from one source file, `scrapline.html`. Nothing in
-`dist/` is ever hand-edited — regenerate it with:
+Everything here is built from one source file, `scrapline.html`. The whole game is
+a single self-contained HTML file, so an upload is usually just that one file —
+no archive, no asset folder. Nothing in `dist/` is ever hand-edited; regenerate
+it with:
 
 ```
 node tools/build-portals.js
@@ -43,9 +45,12 @@ Encoded in the `Ads` object in `scrapline.html`:
 ## Submitting to CrazyGames
 
 1. `node tools/build-portals.js`
-2. Zip **the contents** of `dist/crazygames/` — `index.html` at the zip root, not
-   inside a folder.
-3. Create a developer account at developer.crazygames.com and submit the zip.
+2. Create a developer account at developer.crazygames.com and start a new game.
+3. **Drag `dist/crazygames/index.html` directly into their upload zone.** Their
+   uploader rejects archives — "Archive files are not supported, please drag and
+   drop the files directly in the upload zone" — and because the whole game is one
+   self-contained file, that single file *is* the upload. Do not drag the folder,
+   and do not use the zip.
 4. Fill in: title, description, controls, tags, and a thumbnail. Take screenshots
    from the game itself — a boss fight reads best.
 5. They test on desktop and mobile. Known-good already: instant load, no external
@@ -54,7 +59,9 @@ Encoded in the `Ads` object in `scrapline.html`:
 ## Submitting to Poki
 
 1. `node tools/build-portals.js`
-2. Zip the contents of `dist/poki/`.
+2. Upload `dist/poki/index.html`. A zip of that folder's *contents* is also built
+   at `dist/scrapline-poki.zip` if their form asks for an archive instead — check
+   which their uploader wants, since CrazyGames rejects archives outright.
 3. Apply at developers.poki.com. Poki is more selective and reviews playtest data
    before a wide release, so submit after CrazyGames has been live a while.
 4. Poki checks the SDK integration specifically: `gameplayStart`/`gameplayStop`

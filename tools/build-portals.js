@@ -83,5 +83,9 @@ if (!failed) {
     } catch (e) { console.log('zip   skipped for ' + name + ' (' + e.message + ')'); }
   }
 }
-console.log(failed ? '\nbuild FAILED' : '\nAll builds clean.');
+console.log(failed ? '\nbuild FAILED'
+  : '\nAll builds clean.\n' +
+    'CrazyGames: drag dist/crazygames/index.html straight into their upload zone —\n' +
+    'their uploader rejects archives, and the single file is the whole game.\n' +
+    'The .zip files are only for a portal whose form asks for an archive.');
 process.exit(failed ? 1 : 0);
