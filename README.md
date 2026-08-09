@@ -9,29 +9,6 @@ Runs in any browser — nothing to install, no account, works on phones. Or clon
 the repo and open `scrapline.html` directly. No build step, no dependencies, no
 asset files: every sprite, sound effect and music track is generated at runtime.
 
-## Links
-
-| | |
-|---|---|
-| **Play** | <https://krishp1011.github.io/scrapline/> |
-| **Dev / testing build** | <https://krishp1011.github.io/scrapline/#dev> (or `?dev`) |
-
-The `#dev` link is for testing late-game content without grinding to it. It
-**skips the entire progression system** — it unlocks every rig, maxes the
-workshop, and sets the top rank the moment the page loads, and it saves that to
-your browser like normal progress. Use the plain link if you want to actually
-play the game; use `scrapline.wipe()` in the console to undo it.
-
-Nothing in the game's UI links to `#dev`, so anyone you share the plain link with
-gets the real progression. The same tools are on the console:
-
-```js
-scrapline.unlockAll()   // all rigs, workshop maxed, top rank, 9999 tokens
-scrapline.wipe()        // back to a fresh save
-scrapline.tokens(500)   // set salvage tokens
-scrapline.meta()        // dump the saved progress object
-```
-
 ## Controls
 
 | | |

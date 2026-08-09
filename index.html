@@ -5,9 +5,8 @@
 <title>SCRAPLINE</title>
 <link rel="canonical" href="scrapline.html">
 <script>
-  // Carry the query string and the fragment across the redirect. A plain
-  // <meta refresh> drops them, which silently broke the #dev unlock link: the
-  // browser landed on scrapline.html with no hash at all and started a normal run.
+  // Carry the query string and the fragment across the redirect; a plain
+  // <meta refresh> drops both.
   location.replace('scrapline.html' + location.search + location.hash);
 </script>
 <!-- fallback for anyone with scripting disabled; loses the fragment, but at least
