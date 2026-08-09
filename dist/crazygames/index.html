@@ -812,6 +812,46 @@ function whiten(src) {
 // save that is already sitting in someone's browser — so the key changes instead
 // and every profile starts from scratch, which is the whole point of removing it.
 const META_KEY = 'scrapline.meta.v2';
+
+// ---- storage ----
+// CrazyGames runs submitted games in an iframe, where their Automatic Progress
+// Save does not apply and third-party localStorage can be partitioned or blocked
+// outright. Their SDK data module is the supported route to cloud save there, so
+// it is preferred when present and plain localStorage is the fallback everywhere
+// else. Writes go to both: the local copy keeps the game working if the portal
+// store ever fails, and it means progress made on the plain build is picked up
+// the first time someone plays the portal build.
+const Store = {
+  portal() {
+    try {
+      const d = window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data;
+      return (d && typeof d.getItem === 'function') ? d : null;
+    } catch (e) { return null; }
+  },
+  getItem(k) {
+    const p = this.portal();
+    if (p) {
+      try {
+        const v = p.getItem(k);
+        // guard against a version that returns a promise — we read synchronously
+        if (v && typeof v.then === 'function') { /* fall through to local */ }
+        else if (v !== null && v !== undefined) return v;
+      } catch (e) {}
+    }
+    try { return localStorage.getItem(k); } catch (e) {}
+    return null;
+  },
+  setItem(k, v) {
+    const p = this.portal();
+    if (p) { try { p.setItem(k, v); } catch (e) {} }
+    try { localStorage.setItem(k, v); } catch (e) {}
+  },
+  removeItem(k) {
+    const p = this.portal();
+    if (p) { try { p.removeItem(k); } catch (e) {} }
+    try { localStorage.removeItem(k); } catch (e) {}
+  }
+};
 const YARD = [
   { id: 'frame', n: 'Reinforced Frame', d: '+5 max HP on every rig',       max: 5, cost: l => 14 + l * 9 },
   { id: 'stock', n: 'Sharpened Stock',  d: '+1 turret damage on every rig', max: 5, cost: l => 18 + l * 12 },
@@ -827,7 +867,7 @@ let META = { tokens: 0, unlocked: ['scrapper'], yard: {}, bestWave: 0, runs: 0, 
 
 function loadMeta() {
   try {
-    const raw = localStorage.getItem(META_KEY);
+    const raw = Store.getItem(META_KEY);
     if (raw) {
       const m = JSON.parse(raw);
       if (m && typeof m === 'object') {
@@ -846,7 +886,7 @@ function loadMeta() {
   } catch (e) { /* storage blocked — progress just stays in memory this session */ }
 }
 function saveMeta() {
-  try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch (e) {}
+  try { Store.setItem(META_KEY, JSON.stringify(META)); } catch (e) {}
 }
 function tokenPip(n, big) {
   return '<img class="tk' + (big ? ' big' : '') + '" src="' + (ICON_URL['Token'] || '') + '" alt="tokens">' + n;
@@ -2405,7 +2445,22 @@ const Ads = {
       } else if (window.CrazyGames && window.CrazyGames.SDK) {
         this.platform = 'crazygames';
         const sdk = window.CrazyGames.SDK;
-        (sdk.init ? sdk.init() : Promise.resolve()).then(() => { this.ready = true; }).catch(() => { this.ready = true; });
+        const afterInit = () => {
+          this.ready = true;
+          // the data module only exists once the SDK is up, and bootstrap has
+          // already read storage by now — re-read so cloud progress wins
+          try {
+            if (Store.portal()) {
+              const wasMenu = (typeof state !== 'undefined' && state === 'menu');
+              loadMeta();
+              AU.muted = META.muted;
+              if (wasMenu) { reset(); state = 'menu'; }
+              if (typeof refreshRankLine === 'function') refreshRankLine();
+              if (typeof refreshDailyLine === 'function') refreshDailyLine();
+            }
+          } catch (e) {}
+        };
+        (sdk.init ? sdk.init() : Promise.resolve()).then(afterInit).catch(afterInit);
       } else {
         this.platform = 'standalone';
         this.ready = true;

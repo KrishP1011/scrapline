@@ -16,6 +16,21 @@ node tools/build-portals.js
 | `dist/selfhost/` | no portal SDK, own ad rails enabled | yours, in the side rails |
 | `scrapline.html` | plain build, no ads at all | none |
 
+## Saving progress
+
+CrazyGames runs submitted games in an iframe, where their Automatic Progress Save
+does not apply and third-party localStorage can be partitioned or blocked. The
+game therefore uses **the CrazyGames SDK data module** when it is present, and
+plain localStorage everywhere else — same key, `scrapline.meta.v2`.
+
+Answer their form with **"Yes, using the Data Module from the CrazyGames SDK"**.
+
+Writes go to both stores. The local copy keeps the game playable if the portal
+store ever fails, and it means progress made on the plain build is picked up the
+first time someone plays the portal build. Because their SDK initialises
+asynchronously, the game re-reads storage once the data module exists, so cloud
+progress wins over whatever was loaded at boot.
+
 ## Why the game carries no ad code
 
 CrazyGames and Poki both prohibit third-party ad code inside a submitted game.
