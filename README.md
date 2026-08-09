@@ -9,6 +9,13 @@ Runs in any browser — nothing to install, no account, works on phones. Or clon
 the repo and open `scrapline.html` directly. No build step, no dependencies, no
 asset files: every sprite, sound effect and music track is generated at runtime.
 
+## Publishing
+
+Portal-ready. `node tools/build-portals.js` produces submittable packages for
+CrazyGames, Poki, and a self-hosted build with its own ad rails. See
+[PUBLISHING.md](PUBLISHING.md) for what goes where and why the game itself
+carries no ad code.
+
 ## Controls
 
 | | |
@@ -40,7 +47,11 @@ asset files: every sprite, sound effect and music track is generated at runtime.
   manual documents every one of them.
 - **Meta-progression** — salvage tokens unlock rigs and permanent workshop upgrades
   in The Yard, then seven prestige ranks with shiny badges.
+- **Daily challenge** — one seed a day, shared by everyone, resets at midnight UTC.
+- **12 badges**, per-rig personal bests, and an end-of-run screen that shows what
+  killed you and how close the next unlock is.
 - Procedural audio, run summary, field manual, touch controls, saved progress.
+- Zero external requests: no webfonts, no CDNs, no trackers.
 
 ## Notes
 
