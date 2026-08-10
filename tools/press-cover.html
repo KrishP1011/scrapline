@@ -1,0 +1,74 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#0A0706;
+    font-family:'Trebuchet MS','Segoe UI',Roboto,system-ui,sans-serif;}
+  #root{position:relative;width:100vw;height:100vh;overflow:hidden;}
+  #bg{position:absolute;inset:0;background-size:cover;background-position:50% 50%;
+      image-rendering:pixelated;filter:saturate(1.28) contrast(1.05) brightness(1.5);}
+  body.p #bg{background-image:url('__PBG__');}
+  body.s #bg{background-image:url('__SBG__');}
+  body.v #bg{background-image:url('__PBG__');}
+  body.l #bg{background-image:url('__LBG__');}
+  #tint{position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(10,7,6,.97) 0%, rgba(10,7,6,.9) 20%,
+               rgba(10,7,6,.28) 40%, rgba(10,7,6,.22) 60%, rgba(10,7,6,.9) 82%,
+               rgba(10,7,6,.98) 100%);}
+  #scan{position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 3px,transparent 3px 6px);}
+  #vig{position:absolute;inset:0;box-shadow:inset 0 0 160px 40px rgba(10,7,6,.85);}
+  #top{position:absolute;left:0;right:0;top:7%;text-align:center;padding:0 5%;}
+  #bot{position:absolute;left:0;right:0;bottom:7%;text-align:center;padding:0 5%;}
+  .eyebrow{color:#8A7A63;letter-spacing:.55em;margin-bottom:.5em;}
+  h1{font-weight:800;color:#F0A93B;line-height:.92;margin:0;letter-spacing:.045em;
+     text-shadow:0 0 60px rgba(240,169,59,.6), 0 6px 0 #7E3427, 0 8px 30px rgba(0,0,0,.9);}
+  .rule{height:5px;margin:.55em auto 0;
+        background:linear-gradient(90deg,transparent,#B4503C,#F0A93B,#B4503C,transparent);}
+  .tag{color:#DCD5C6;font-weight:600;text-shadow:0 3px 14px rgba(0,0,0,.95);}
+  .tag b{color:#F0A93B;}
+  .feat{display:flex;gap:.5em;flex-wrap:wrap;justify-content:center;margin-top:.9em;}
+  .feat span{border:2px solid #3A2E24;background:rgba(23,17,13,.9);color:#8A7A63;
+    letter-spacing:.14em;padding:.45em .8em;border-radius:4px;}
+  /* 2:3 portrait */
+  body.p .eyebrow{font-size:22px;} body.p h1{font-size:112px;}
+  body.p .rule{width:62%;} body.p .tag{font-size:29px;} body.p .feat span{font-size:18px;}
+  /* 1:1 square */
+  body.s .eyebrow{font-size:20px;} body.s h1{font-size:96px;}
+  body.s .rule{width:58%;} body.s .tag{font-size:26px;} body.s .feat span{font-size:17px;}
+  body.s #top{top:9%;} body.s #bot{bottom:9%;}
+  /* 16:9 landscape */
+  body.l #tint{background:linear-gradient(90deg, rgba(10,7,6,.97) 0%, rgba(10,7,6,.9) 30%,
+      rgba(10,7,6,.28) 55%, rgba(10,7,6,0) 78%, rgba(10,7,6,.35) 100%),
+      linear-gradient(0deg, rgba(10,7,6,.6) 0%, rgba(10,7,6,0) 35%);}
+  body.l #top{top:50%;transform:translateY(-50%);left:5%;right:auto;width:52%;text-align:left;}
+  /* the title block is ~220px tall and centred, so the tagline has to clear it
+     or it lands straight on top of the wordmark */
+  body.l #bot{bottom:auto;top:50%;left:5%;right:auto;width:52%;text-align:left;
+              transform:translateY(128px);}
+  body.l .eyebrow{font-size:26px;} body.l h1{font-size:150px;}
+  body.l .rule{width:60%;margin-left:0;} body.l .tag{font-size:36px;}
+  body.l .feat{justify-content:flex-start;} body.l .feat span{font-size:20px;}
+  /* portrait video frame: leave a clear band in the middle for footage */
+  body.v #bg{filter:saturate(1.2) brightness(.6);}
+  body.v #tint{background:linear-gradient(180deg, rgba(10,7,6,.99) 0%, rgba(10,7,6,.97) 24%,
+      rgba(10,7,6,.99) 30%, rgba(10,7,6,.99) 70%, rgba(10,7,6,.97) 76%, rgba(10,7,6,.99) 100%);}
+  body.v .eyebrow{font-size:26px;} body.v h1{font-size:132px;}
+  body.v .rule{width:60%;} body.v .tag{font-size:34px;} body.v .feat span{font-size:22px;}
+  body.v #top{top:6%;} body.v #bot{bottom:6%;}
+</style></head><body>
+<div id="root">
+  <div id="bg"></div><div id="tint"></div><div id="scan"></div>
+  <div id="top">
+    <div class="eyebrow">SALVAGE YARD ARENA</div>
+    <h1>SCRAPLINE</h1>
+    <div class="rule"></div>
+  </div>
+  <div id="bot">
+    <div class="tag"><b>Move.</b> Everything else fights for you.</div>
+    <div class="feat"><span>6 RIGS</span><span>10 WEAPONS</span><span>42 CARDS</span><span>11 BOSSES</span></div>
+  </div>
+  <div id="vig"></div>
+</div>
+<script>
+  var m = (location.hash||'#p').slice(1);
+  document.body.className = m;
+</script>
+</body></html>
