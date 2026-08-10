@@ -53,11 +53,16 @@ bullet-hell, singleplayer, mobile-friendly
 Action / Shooting
 
 ## Assets in this folder
+- preview-16x9.mp4 — 11s gameplay preview, 1280x720, ends on the cover card
+- preview.mp4 — same clip at the game's native aspect, 1350x900
+- preview.webm — smaller VP9 version for embeds
 - cover-16x9.png — 1920x1080 cover
 - screenshot-1-boss.png — Slag Widow fight (900x600)
 - screenshot-2-swarm.png — mid-game crowd (900x600)
 - screenshot-3-late.png — late-wave with elites (900x600)
 
-If the form wants a different aspect or size, re-render with
-`tools/build-portals.js` assets step or just crop these — they are clean captures
-with no browser chrome.
+The video has no audio — the game's sound is generated at runtime and a silent
+gameplay clip is normally what portals want. Re-render everything with
+`./tools/make-preview.sh`; it is deterministic, so the same build always produces
+the same clip. Screenshots are clean captures with no browser chrome, so crop
+freely if a form wants a different aspect.

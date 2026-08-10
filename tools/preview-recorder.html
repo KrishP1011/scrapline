@@ -1,0 +1,75 @@
+<style>body{padding:0!important;overflow:hidden;background:#0A0706!important;}
+#stage{gap:0!important;}#wrap{filter:none!important;}
+canvas{border:0!important;border-radius:0!important;box-shadow:none!important;}
+#wrap::before,#wrap::after{display:none!important;}</style>
+<script>
+// Renders the whole trailer inside ONE page load: simulate, draw, grab the canvas
+// as a JPEG data URL, repeat. Synchronous, so no render loop and no virtual-time
+// games — the frames come out deterministic and it finishes in seconds.
+(function(){ setTimeout(function(){
+ try{
+  window.requestAnimationFrame = function(){ return 0; };   // stop the live loop
+  // warm = sim steps before the camera rolls. The boss needs a long one: its damage
+  // throttle guarantees a minute-long fight, so a short warm-up only ever shows
+  // phase 1 with an empty deck.
+  var SCENES = [
+    { wave: 14, weapons:[1,4], stacks:4, hp:170, seed: 20250811, frames: 84, warm: 520 },
+    { wave: 20, weapons:[0,3], stacks:7, hp:230, seed: 77123409, frames: 96, warm: 2400 },
+    { wave: 26, weapons:[5,6], stacks:9, hp:260, seed: 31415926, frames: 90, warm: 620 }
+  ];
+  var STEPS = 2, DT = 1/60, out = [];
+  function drive(){
+    var rx=0, ry=0, i;
+    for (i=0;i<enemies.length;i++){
+      var e=enemies[i], d=Math.hypot(e.x-p.x,e.y-p.y);
+      if (d>250||d<0.001) continue;
+      var w=(heavy(e)?2.2:1)*(250-d)/250;
+      rx-=(e.x-p.x)/d*w; ry-=(e.y-p.y)/d*w;
+    }
+    for (i=0;i<ebullets.length;i++){
+      var b=ebullets[i], bd=Math.hypot(b.x-p.x,b.y-p.y);
+      if (bd>120||bd<0.001) continue;
+      rx-=(b.x-p.x)/bd*1.6; ry-=(b.y-p.y)/bd*1.6;
+    }
+    var M=150;
+    if(p.x<M) rx+=(M-p.x)/M*2.4; if(p.x>W-M) rx-=(p.x-(W-M))/M*2.4;
+    if(p.y<M) ry+=(M-p.y)/M*2.4; if(p.y>H-M) ry-=(p.y-(H-M))/M*2.4;
+    rx += Math.cos(gt*0.9)*0.5; ry += Math.sin(gt*0.9)*0.5;
+    var l=Math.hypot(rx,ry)||1;
+    stick={id:1,ox:0,oy:0,dx:rx/l,dy:ry/l,mag:1};
+    var near=1e9;
+    for (i=0;i<enemies.length;i++) near=Math.min(near,Math.hypot(enemies[i].x-p.x,enemies[i].y-p.y)-enemies[i].r);
+    keys[' '] = near < 46; keys['e'] = true;
+  }
+  for (var sc=0; sc<SCENES.length; sc++){
+    var S = SCENES[sc];
+    Math.random = mulberry32(S.seed);
+    hideOverlays(); charIdx=0; reset();
+    wave = S.wave-1; nextWave();
+    p.slots=2; p.weapons=S.weapons.slice();
+    for (var i2=0;i2<POOL.length;i2++){ for(var k=0;k<S.stacks;k++){ POOL[i2].f(); p.lvl[POOL[i2].n]=(p.lvl[POOL[i2].n]||0)+1; } }
+    p.maxHp=S.hp; p.hp=S.hp;
+    // let the wave populate before the camera starts rolling
+    for (var warm=0; warm<(S.warm||150); warm++){ gt+=DT; drive(); if(state==='play') update(DT); if(p.hp<p.maxHp*0.5)p.hp=p.maxHp*0.92; }
+    for (var f=0; f<S.frames; f++){
+      for (var st=0; st<STEPS; st++){
+        gt+=DT; drive();
+        if (state==='play') update(DT);
+        else if (state==='sweep') sweepUpdate(DT);
+        else if (state==='shop') nextWave();
+        if (p.hp < p.maxHp*0.5) p.hp = p.maxHp*0.92;
+        if (state==='dead'){ state='play'; p.hp=p.maxHp; }
+      }
+      draw(); drawHUD();
+      out.push(cvs.toDataURL('image/jpeg', 0.82).split(',')[1]);
+    }
+  }
+  var pre = document.createElement('pre');
+  pre.id='FRAMES';
+  pre.textContent = out.join('\n');
+  document.body.innerHTML = '';
+  document.body.appendChild(pre);
+  document.title = 'DONE ' + out.length;
+ }catch(e){ document.title = 'FAIL ' + e; document.body.innerHTML='<pre id="FRAMES"></pre>'; }
+},150); })();
+</script>
